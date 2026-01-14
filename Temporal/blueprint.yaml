@@ -23,10 +23,16 @@ introduction: |
 description: |
   Temporal provides a powerful workflow orchestration engine that enables you to build resilient applications with durable execution.
   
-  Features include:
+  This deployment includes:
+  - PostgreSQL 16 for persistence
+  - Temporal Server 1.29.1 for workflow orchestration
+  - Temporal Web UI for monitoring and debugging workflows
+  - Automatic schema initialization and default namespace creation
+  - Health checks for reliable service startup
+  
+  Features:
   - Durable workflow execution
   - Event-driven architecture
   - Automatic retries and error handling
   - Workflow versioning
-  - Web UI for monitoring and debugging
-  - PostgreSQL backend for persistence
+  - Production-ready schema setup
