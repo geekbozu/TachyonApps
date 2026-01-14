@@ -3,25 +3,29 @@ type: VPN
 category: "VPN"
 expertiseLevel: "EXPERT"
 tags: ["Service"]
-icon: assets/hello-world.svg
-gitrepo: https://github.com/epietrowicz/tof-flappy-bird
+gitrepo: https://github.com/geekbozu/TachyonApps.git
 name: "wg-easy"
-shortDescription: wg-easy
+shortDescription: Easiest way to manage WireGuard VPN with a web UI.
 version: 1.0.0
 models: []
-language: [ "Python" ]
+language: []
 cloudServices:
 integrations: []
 supportedDevices:
   - name: Tachyon
-  - name: Rasberry Pi
-webIdeLink: https://go.particle.io/shared_apps/6761f677ca3d870509cd4384
-webSetupLink: part.cl/setup-tachyon
+  - name: Raspberry Pi
 hardwareDependencies:
   - name: Supported device
 containers: wg-easy
 introduction: |
-  wg-easy
+  Wg-easy is a robust and user-friendly web interface for managing WireGuard VPN instances, making client configuration and server management effortless.
 
 description: |
-  wg-easy
+  Wg-easy provides a clean, responsive web UI for your WireGuard VPN server. 
+
+  Features include:
+  - Easy client management (add/remove)
+  - QR Code generation for mobile clients
+  - Configuration file downloads
+  - Live traffic monitoring
+  - Secure and lightweight deployment using Docker
