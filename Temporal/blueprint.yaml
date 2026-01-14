@@ -9,7 +9,7 @@ shortDescription: Temporal is a durable execution platform for building resilien
 version: 1.0.0
 models: []
 language: []
-cloudServices:
+cloudServices: []
 integrations: []
 supportedDevices:
   - name: Tachyon
