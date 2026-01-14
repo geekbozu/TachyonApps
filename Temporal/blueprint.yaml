@@ -1,0 +1,32 @@
+slug: temporal-container
+type: Workflow Orchestration
+category: "Development"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "Workflow", "Orchestration"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Temporal"
+shortDescription: Temporal is a durable execution platform for building resilient applications.
+version: 1.0.0
+models: []
+language: []
+cloudServices:
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: temporal
+introduction: |
+  Temporal is a development platform for building scalable and reliable applications with workflow orchestration capabilities.
+
+description: |
+  Temporal provides a powerful workflow orchestration engine that enables you to build resilient applications with durable execution.
+  
+  Features include:
+  - Durable workflow execution
+  - Event-driven architecture
+  - Automatic retries and error handling
+  - Workflow versioning
+  - Web UI for monitoring and debugging
+  - PostgreSQL backend for persistence
