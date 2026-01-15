@@ -64,6 +64,7 @@ services:
     entrypoint: ["/bin/sh"]
     command: >
       -c '
+      set -eu;
       echo "Starting PostgreSQL schema setup...";
       echo "Waiting for PostgreSQL port to be available...";
       nc -z -w 10 postgresql 5432;
@@ -124,6 +125,7 @@ services:
     entrypoint: ["/bin/sh"]
     command: >
       -c '
+      set -eu;
       NAMESPACE=$${DEFAULT_NAMESPACE:-default};
       TEMPORAL_ADDRESS=$${TEMPORAL_ADDRESS:-temporal:7233};
       
