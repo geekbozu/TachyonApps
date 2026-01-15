@@ -61,10 +61,26 @@ services:
       - SQL_PASSWORD=temporal
     networks:
       - temporal-network
-    volumes:
-      - /mnt/sdcard/temporal/scripts:/scripts
     entrypoint: ["/bin/sh"]
-    command: /scripts/setup-postgres.sh
+    command: >
+      -c '
+      echo "Starting PostgreSQL schema setup...";
+      echo "Waiting for PostgreSQL port to be available...";
+      nc -z -w 10 postgresql 5432;
+      echo "PostgreSQL port is available";
+      
+      echo "Creating and setting up temporal database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned;
+      
+      echo "Creating and setting up visibility database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned;
+      
+      echo "PostgreSQL schema setup complete";
+      '
 
   temporal:
     image: temporalio/server:1.29.1
@@ -105,10 +121,34 @@ services:
       - DEFAULT_NAMESPACE=default
     networks:
       - temporal-network
-    volumes:
-      - /mnt/sdcard/temporal/scripts:/scripts
     entrypoint: ["/bin/sh"]
-    command: /scripts/create-namespace.sh
+    command: >
+      -c '
+      NAMESPACE=$${DEFAULT_NAMESPACE:-default};
+      TEMPORAL_ADDRESS=$${TEMPORAL_ADDRESS:-temporal:7233};
+      
+      echo "Waiting for Temporal server port to be available...";
+      nc -z -w 10 $$(echo $$TEMPORAL_ADDRESS | cut -d: -f1) $$(echo $$TEMPORAL_ADDRESS | cut -d: -f2);
+      echo "Temporal server port is available";
+      
+      echo "Waiting for Temporal server to be healthy...";
+      max_attempts=3;
+      attempt=0;
+      
+      until temporal operator cluster health --address $$TEMPORAL_ADDRESS; do
+        attempt=$$((attempt + 1));
+        if [ $$attempt -ge $$max_attempts ]; then
+          echo "Server did not become healthy after $$max_attempts attempts";
+          exit 1;
+        fi;
+        echo "Server not ready yet, waiting... (attempt $$attempt/$$max_attempts)";
+        sleep 5;
+      done;
+      
+      echo "Server is healthy, creating namespace \"$$NAMESPACE\"...";
+      temporal operator namespace describe -n $$NAMESPACE --address $$TEMPORAL_ADDRESS || temporal operator namespace create -n $$NAMESPACE --address $$TEMPORAL_ADDRESS;
+      echo "Namespace \"$$NAMESPACE\" created";
+      '
 
   temporal-ui:
     container_name: temporal-ui

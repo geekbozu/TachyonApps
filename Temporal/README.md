@@ -8,24 +8,16 @@ This deployment uses SD card storage for persistent configuration while keeping 
 
 ## Setup Instructions
 
-### 1. Prepare SD Card Directories
+### 1. Prepare SD Card Configuration
 
-Before starting the Temporal containers, copy the configuration files to the SD card:
+Before starting the Temporal containers, copy the configuration file to the SD card:
 
 ```bash
 # Create directory structure on SD card
-mkdir -p /mnt/sdcard/temporal/scripts
 mkdir -p /mnt/sdcard/temporal/dynamicconfig
-
-# Copy scripts
-cp temporal/scripts/setup-postgres.sh /mnt/sdcard/temporal/scripts/
-cp temporal/scripts/create-namespace.sh /mnt/sdcard/temporal/scripts/
 
 # Copy dynamic configuration
 cp temporal/dynamicconfig/development-sql.yaml /mnt/sdcard/temporal/dynamicconfig/
-
-# Ensure scripts are executable
-chmod +x /mnt/sdcard/temporal/scripts/*.sh
 ```
 
 ### 2. Start Services
@@ -38,10 +30,9 @@ docker compose up -d
 ## Storage Architecture
 
 ### SD Card Storage (`/mnt/sdcard/temporal/`)
-- **scripts/**: Database initialization and namespace creation scripts
 - **dynamicconfig/**: Temporal runtime configuration
 
-These files persist across container recreations and firmware updates.
+This configuration persists across container recreations and firmware updates.
 
 ### Container-Local Storage
 - **PostgreSQL data** (`temporal-postgres-data` named volume): Stored in Docker's volume directory for performance
@@ -49,13 +40,18 @@ These files persist across container recreations and firmware updates.
   - Data persists across container recreations but not firmware updates
   - Use `docker volume ls` to see the volume and `docker volume inspect temporal-postgres-data` for details
 
+### Embedded Initialization Scripts
+- **Database setup**: Embedded directly in the `temporal-admin-tools` service
+- **Namespace creation**: Embedded directly in the `temporal-create-namespace` service
+- No manual script copying required - these run automatically on first startup
+
 ## Service Dependencies
 
 1. `mount-check`: Validates SD card is mounted before starting
 2. `postgresql`: Database with health checks
-3. `temporal-admin-tools`: Initializes database schemas (depends on mount-check and postgresql)
+3. `temporal-admin-tools`: Initializes database schemas using embedded scripts (depends on mount-check and postgresql)
 4. `temporal`: Main server (depends on admin-tools completion)
-5. `temporal-create-namespace`: Creates default namespace (depends on temporal health)
+5. `temporal-create-namespace`: Creates default namespace using embedded script (depends on temporal health)
 6. `temporal-ui`: Web interface (depends on temporal health)
 
 ## Ports
