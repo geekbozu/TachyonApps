@@ -1,0 +1,36 @@
+slug: adguardhome-container
+type: DNS
+category: "Network"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "DNS", "AdBlocking"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "AdGuard Home"
+shortDescription: Network-wide ads & trackers blocking DNS server with web UI.
+version: 1.0.0
+models: []
+language: []
+cloudServices:
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: adguardhome
+introduction: |
+  AdGuard Home is a network-wide software for blocking ads and tracking. After you set it up, it'll cover all your home devices, and you won't need any client-side software for that.
+
+description: |
+  AdGuard Home operates as a DNS server that re-routes tracking domains to a "black hole", thus preventing your devices from connecting to those servers. It's based on software used for public AdGuard DNS servers.
+
+  Features include:
+  - Network-wide ad and tracker blocking
+  - Customizable blocklists and allowlists
+  - Built-in DHCP server
+  - HTTPS/DNS-over-HTTPS support
+  - DNS-over-TLS and DNS-over-QUIC support
+  - Detailed query logs and statistics
+  - Parental control
+  - Safe browsing
+  
+  This deployment is configured with persistent storage on /mnt/sdcard for firmware re-install resilience.

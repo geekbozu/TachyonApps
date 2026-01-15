@@ -1,0 +1,45 @@
+services:
+  sdcard-mount:
+    image: alpine:latest
+    container_name: sdcard-mount
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /dev:/dev
+      - /etc:/host_etc
+      - /mnt:/mnt:shared
+      - /proc:/host_proc
+    command: >
+      sh -c '
+      echo "=== SD Card Auto-Mount Service ===";
+      DEVICE="/dev/mmcblk1p1";
+      MOUNT_POINT="/mnt/sdcard";
+      
+      ls -la $$DEVICE || exit 1;
+      mkdir -p $$MOUNT_POINT;
+      
+      if mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
+        echo "SD card already mounted at $$MOUNT_POINT";
+      else
+        echo "Mounting $$DEVICE to $$MOUNT_POINT...";
+        mount $$DEVICE $$MOUNT_POINT && echo "Successfully mounted SD card" || exit 1;
+      fi;
+      
+      if ! grep -q "$$DEVICE" /host_etc/fstab 2>/dev/null; then
+        FSTYPE=$$(blkid -s TYPE -o value "$$DEVICE" 2>/dev/null || echo "auto");
+        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,nofail 0 2" >> /host_etc/fstab;
+        echo "Added to fstab";
+      fi;
+      
+      echo "SD card ready at $$MOUNT_POINT";
+      
+      while true; do
+        if ! mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
+          echo "WARNING: Mount lost, remounting...";
+          mount $$DEVICE $$MOUNT_POINT && echo "Remounted successfully" || echo "Remount failed";
+        fi;
+        sleep 300;
+      done
+      '
+    restart: unless-stopped

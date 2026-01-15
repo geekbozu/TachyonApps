@@ -1,0 +1,103 @@
+volumes:
+  adguardhome_work:
+
+services:
+  resolved-fix:
+    image: alpine:latest
+    container_name: adguardhome-resolved-fix
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /etc:/host_etc
+      - /run:/host_run
+      - /proc:/host_proc
+    command: >
+      sh -c '
+      echo "Checking for systemd-resolved conflicts...";
+      if [ -f /host_etc/systemd/resolved.conf ] && (pgrep -x systemd-resolve > /dev/null 2>&1 || pgrep systemd-resolved > /dev/null 2>&1); then
+        echo "systemd-resolved detected, applying fix...";
+        mkdir -p /host_etc/systemd/resolved.conf.d;
+        echo "[Resolve]" > /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        echo "DNS=127.0.0.1" >> /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        echo "DNSStubListener=no" >> /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        if [ -f /host_etc/resolv.conf ] && [ ! -L /host_etc/resolv.conf ]; then
+          echo "Backing up resolv.conf...";
+          cp /host_etc/resolv.conf /host_etc/resolv.conf.backup;
+        fi;
+        if [ -f /host_run/systemd/resolve/resolv.conf ]; then
+          echo "Creating resolv.conf symlink...";
+          ln -sf /run/systemd/resolve/resolv.conf /host_etc/resolv.conf;
+        fi;
+        echo "Attempting to reload systemd-resolved...";
+        if command -v nsenter > /dev/null 2>&1; then
+          nsenter --target 1 --mount --uts --ipc --net --pid systemctl reload-or-restart systemd-resolved && echo "Successfully reloaded systemd-resolved" || echo "Failed to reload systemd-resolved, you may need to run manually: systemctl reload-or-restart systemd-resolved";
+        else
+          echo "nsenter not available. Please run manually: systemctl reload-or-restart systemd-resolved";
+        fi;
+      else
+        echo "No systemd-resolved conflict detected or systemd-resolved not running.";
+        echo "Checking if port 53 is in use...";
+        if nsenter --target 1 --mount --uts --ipc --net --pid ss -tulnp 2>/dev/null | grep :53; then
+          echo "WARNING: Port 53 is in use. AdGuard Home may fail to start.";
+        else
+          echo "Port 53 appears to be free.";
+        fi;
+      fi
+      '
+    restart: "no"
+
+  mount-check:
+    image: alpine:latest
+    container_name: adguardhome-mount-check
+    volumes:
+      - /mnt/sdcard:/mnt/sdcard:ro
+    command: >
+      sh -c '
+      echo "Waiting for SD card mount...";
+      for i in 1 2 3 4 5; do
+        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "SD card mount verified.";
+          exit 0;
+        fi;
+        echo "Mount not ready, waiting 5 seconds... (attempt $$i/5)";
+        sleep 5;
+      done;
+      echo "ERROR: SD card mount not available after 25 seconds.";
+      echo "Please ensure the sdcard-mount container is running.";
+      exit 1;
+      '
+    restart: "no"
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    restart: unless-stopped
+    depends_on:
+      resolved-fix:
+        condition: service_started
+      mount-check:
+        condition: service_completed_successfully
+    
+    environment:
+      - TZ=UTC
+    
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000/tcp"
+      # - "80:80/tcp"
+      # - "443:443/tcp"
+      # - "443:443/udp"
+      # - "853:853/tcp"
+      # - "853:853/udp"
+      # - "5443:5443/tcp"
+      # - "5443:5443/udp"
+    
+    volumes:
+      - adguardhome_work:/opt/adguardhome/work
+      - /mnt/sdcard/adguardhome:/opt/adguardhome/conf
+    
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE

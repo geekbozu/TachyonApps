@@ -1,0 +1,33 @@
+slug: sdcard-mount
+type: System
+category: "Storage"
+expertiseLevel: "ADVANCED"
+tags: ["System", "Storage", "Mount"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "SD Card Auto-Mount"
+shortDescription: Ensures SD card is properly mounted on boot for persistent storage.
+version: 1.0.0
+models: []
+language: []
+cloudServices:
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: SD Card
+containers: sdcard-mount
+introduction: |
+  This utility ensures that your SD card is properly mounted at boot time, providing persistent storage across firmware re-installs.
+
+description: |
+  Some Ubuntu versions may not properly mount the SD card on boot. This container automatically detects and mounts the SD card partition at /mnt/sdcard on system startup.
+
+  Features include:
+  - Automatic SD card detection and mounting
+  - Creates mount point if it doesn't exist
+  - Adds entry to /etc/fstab for persistent mounting
+  - Runs on every container start to ensure availability
+  - Supports ext4, vfat, and other common filesystems
+  
+  The SD card partition /dev/mmcblk0p1 will be mounted at /mnt/sdcard.
