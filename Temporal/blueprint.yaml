@@ -16,19 +16,27 @@ supportedDevices:
   - name: Raspberry Pi
 hardwareDependencies:
   - name: Supported device
+  - name: SD Card
 containers: temporal
 introduction: |
-  Temporal is a development platform for building scalable and reliable applications with workflow orchestration capabilities.
+  Temporal is a development platform for building scalable and reliable applications with workflow orchestration capabilities. This deployment uses SD card storage for configuration persistence.
 
 description: |
   Temporal provides a powerful workflow orchestration engine that enables you to build resilient applications with durable execution.
   
   This deployment includes:
-  - PostgreSQL 16 for persistence
+  - PostgreSQL 16 for persistence (container-local storage for performance)
   - Temporal Server 1.29.1 for workflow orchestration
   - Temporal Web UI for monitoring and debugging workflows
   - Automatic schema initialization and default namespace creation
   - Health checks for reliable service startup
+  - SD card mount verification before startup
+  - Configuration persistence on SD card
+  
+  Storage architecture:
+  - Scripts and configuration stored on SD card at /mnt/sdcard/temporal/
+  - PostgreSQL data kept on container-local storage for performance
+  - Requires Storage/sdcard-mount container to be running
   
   Features:
   - Durable workflow execution
@@ -36,3 +44,4 @@ description: |
   - Automatic retries and error handling
   - Workflow versioning
   - Production-ready schema setup
+  - Configuration survives firmware updates

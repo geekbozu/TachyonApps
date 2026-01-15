@@ -1,4 +1,26 @@
 services:
+  mount-check:
+    image: alpine:latest
+    container_name: temporal-mount-check
+    volumes:
+      - /mnt/sdcard:/mnt/sdcard:ro
+    command: >
+      sh -c '
+      echo "Waiting for SD card mount...";
+      for i in 1 2 3 4 5; do
+        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "SD card mount verified.";
+          exit 0;
+        fi;
+        echo "Mount not ready, waiting 5 seconds... (attempt $$i/5)";
+        sleep 5;
+      done;
+      echo "ERROR: SD card mount not available after 25 seconds.";
+      echo "Please ensure the sdcard-mount container is running.";
+      exit 1;
+      '
+    restart: "no"
+
   postgresql:
     image: postgres:16
     container_name: temporal-postgresql
@@ -23,6 +45,8 @@ services:
     container_name: temporal-admin-tools
     restart: on-failure:6
     depends_on:
+      mount-check:
+        condition: service_completed_successfully
       postgresql:
         condition: service_healthy
     environment:
@@ -35,7 +59,7 @@ services:
     networks:
       - temporal-network
     volumes:
-      - ./scripts:/scripts
+      - /mnt/sdcard/temporal/scripts:/scripts
     entrypoint: ["/bin/sh"]
     command: /scripts/setup-postgres.sh
 
@@ -58,7 +82,7 @@ services:
     ports:
       - '7233:7233'
     volumes:
-      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+      - /mnt/sdcard/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "7233"]
       interval: 5s
@@ -79,7 +103,7 @@ services:
     networks:
       - temporal-network
     volumes:
-      - ./scripts:/scripts
+      - /mnt/sdcard/temporal/scripts:/scripts
     entrypoint: ["/bin/sh"]
     command: /scripts/create-namespace.sh
 
