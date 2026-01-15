@@ -44,8 +44,10 @@ docker compose up -d
 These files persist across container recreations and firmware updates.
 
 ### Container-Local Storage
-- **PostgreSQL data** (`/var/lib/postgresql/data`): Stored in container volume for performance
+- **PostgreSQL data** (`temporal-postgres-data` named volume): Stored in Docker's volume directory for performance
   - ⚠️ **Important**: PostgreSQL data is NOT on SD card to avoid performance issues and potential corruption
+  - Data persists across container recreations but not firmware updates
+  - Use `docker volume ls` to see the volume and `docker volume inspect temporal-postgres-data` for details
 
 ## Service Dependencies
 
