@@ -1,0 +1,56 @@
+services:
+  mount-check:
+    image: alpine:latest
+    container_name: open-notebook-mount-check
+    volumes:
+      - /mnt/sdcard:/mnt/sdcard:ro
+    command: >
+      sh -c '
+      echo "Waiting for SD card mount...";
+      for i in 1 2 3 4 5; do
+        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "SD card mount verified.";
+          exit 0;
+        fi;
+        echo "Mount not ready, waiting 5 seconds... (attempt $$i/5)";
+        sleep 5;
+      done;
+      echo "ERROR: SD card mount not available after 25 seconds.";
+      echo "Please ensure the sdcard-mount container is running.";
+      exit 1;
+      '
+    restart: "no"
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    command: start --username $${SURREAL_USER} --password $${SURREAL_PASSWORD} --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
+    user: root  # Required for bind mounts on Linux (SurrealDB runs as non-root by default)
+    env_file:
+      - /mnt/sdcard/open-notebook/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - /mnt/sdcard/open-notebook/surreal_data:/mydata
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest
+    container_name: open-notebook
+    pull_policy: always
+    env_file:
+      - /mnt/sdcard/open-notebook/.env
+    ports:
+      - "8502:8502"  # Web UI
+      - "5055:5055"  # API
+    volumes:
+      - /mnt/sdcard/open-notebook/notebook_data:/app/data
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+      surrealdb:
+        condition: service_started
+    restart: unless-stopped
+

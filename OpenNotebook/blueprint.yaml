@@ -1,0 +1,44 @@
+slug: open-notebook-container
+type: AI Notebook
+category: "AI & Productivity"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "AI", "Notes", "Knowledge Management"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Open Notebook"
+shortDescription: AI-powered notebook for organizing thoughts and knowledge with persistent storage.
+version: 1.0.0
+models: []
+language: []
+cloudServices:
+  - name: OpenAI
+  - name: Anthropic
+  - name: Google AI
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: open-notebook
+introduction: |
+  Open Notebook is an AI-powered note-taking and knowledge management system that helps you organize your thoughts and information effectively.
+
+description: |
+  Open Notebook provides a powerful AI-assisted notebook application with persistent storage capabilities.
+  
+  This deployment includes:
+  - SurrealDB v2 for robust data persistence
+  - Open Notebook web UI and API
+  - Support for multiple AI providers (OpenAI, Anthropic, Google)
+  - Persistent storage on SD card for firmware re-install resilience
+  - Automatic health checks and service dependencies
+  
+  Features:
+  - AI-powered note organization and search
+  - Rich text editing with markdown support
+  - Knowledge graph visualization
+  - Tag-based organization
+  - Full-text search capabilities
+  - Multi-AI provider support
+  
+  This deployment is configured with persistent storage on /mnt/sdcard for firmware re-install resilience.
