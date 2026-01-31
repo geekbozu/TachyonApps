@@ -1,0 +1,42 @@
+slug: veritas-kanban-container
+type: Project Management
+category: "Productivity"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "Kanban", "Project Management", "Productivity"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Veritas Kanban"
+shortDescription: Lightweight, AI-ready Kanban board for personal and team project management.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: veritas-kanban
+introduction: |
+  Veritas Kanban is a clean, efficient Kanban board application designed for personal and team productivity with API support for AI integrations.
+
+description: |
+  Veritas Kanban provides a lightweight yet powerful Kanban board solution with a focus on simplicity and AI integration capabilities.
+  
+  This deployment includes:
+  - Veritas Kanban web interface
+  - File-based data persistence
+  - Built-in authentication with admin key
+  - JWT-based API authentication
+  - RESTful API for external integrations
+  - Persistent storage on SD card for firmware re-install resilience
+  
+  Features:
+  - Clean, intuitive Kanban interface
+  - Board and card management
+  - API access for AI agents and automation
+  - Optional CORS configuration for remote access
+  - Multiple API key support with different permission levels
+  - Lightweight and fast
+  
+  This deployment is configured with persistent storage on /mnt/sdcard for firmware re-install resilience.

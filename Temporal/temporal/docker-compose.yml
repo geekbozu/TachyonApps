@@ -1,0 +1,172 @@
+volumes:
+  temporal-postgres-data:
+
+services:
+  mount-check:
+    image: alpine:latest
+    container_name: temporal-mount-check
+    volumes:
+      - /mnt/sdcard:/mnt/sdcard:ro
+    command: >
+      sh -c '
+      echo "Waiting for SD card mount...";
+      for i in 1 2 3 4 5; do
+        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "SD card mount verified.";
+          exit 0;
+        fi;
+        echo "Mount not ready, waiting 5 seconds... (attempt $$i/5)";
+        sleep 5;
+      done;
+      echo "ERROR: SD card mount not available after 25 seconds.";
+      echo "Please ensure the sdcard-mount container is running.";
+      exit 1;
+      '
+    restart: "no"
+
+  postgresql:
+    image: postgres:16
+    container_name: temporal-postgresql
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    networks:
+      - temporal-network
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: temporal-admin-tools
+    restart: on-failure:6
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+      postgresql:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - SQL_PASSWORD=temporal
+    networks:
+      - temporal-network
+    entrypoint: ["/bin/sh"]
+    command: >
+      -c '
+      set -eu;
+      echo "Starting PostgreSQL schema setup...";
+      echo "Waiting for PostgreSQL port to be available...";
+      nc -z -w 10 postgresql 5432;
+      echo "PostgreSQL port is available";
+      
+      echo "Creating and setting up temporal database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned;
+      
+      echo "Creating and setting up visibility database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned;
+      
+      echo "PostgreSQL schema setup complete";
+      '
+
+  temporal:
+    image: temporalio/server:1.29.1
+    container_name: temporal
+    depends_on:
+      temporal-admin-tools:
+        condition: service_completed_successfully
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - BIND_ON_IP=0.0.0.0
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    networks:
+      - temporal-network
+    ports:
+      - '7233:7233'
+    volumes:
+      - /mnt/sdcard/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 60
+
+  temporal-create-namespace:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: temporal-create-namespace
+    restart: on-failure:5
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DEFAULT_NAMESPACE=default
+    networks:
+      - temporal-network
+    entrypoint: ["/bin/sh"]
+    command: >
+      -c '
+      set -eu;
+      NAMESPACE=$${DEFAULT_NAMESPACE:-default};
+      TEMPORAL_ADDRESS=$${TEMPORAL_ADDRESS:-temporal:7233};
+      
+      echo "Waiting for Temporal server port to be available...";
+      nc -z -w 10 $$(echo $$TEMPORAL_ADDRESS | cut -d: -f1) $$(echo $$TEMPORAL_ADDRESS | cut -d: -f2);
+      echo "Temporal server port is available";
+      
+      echo "Waiting for Temporal server to be healthy...";
+      max_attempts=3;
+      attempt=0;
+      
+      until temporal operator cluster health --address $$TEMPORAL_ADDRESS; do
+        attempt=$$((attempt + 1));
+        if [ $$attempt -ge $$max_attempts ]; then
+          echo "Server did not become healthy after $$max_attempts attempts";
+          exit 1;
+        fi;
+        echo "Server not ready yet, waiting... (attempt $$attempt/$$max_attempts)";
+        sleep 5;
+      done;
+      
+      echo "Server is healthy, creating namespace \"$$NAMESPACE\"...";
+      temporal operator namespace describe -n $$NAMESPACE --address $$TEMPORAL_ADDRESS || temporal operator namespace create -n $$NAMESPACE --address $$TEMPORAL_ADDRESS;
+      echo "Namespace \"$$NAMESPACE\" created";
+      '
+
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    image: temporalio/ui:2.34.0
+    networks:
+      - temporal-network
+    ports:
+      - 8080:8080
+
+networks:
+  temporal-network:
+    driver: bridge
+    name: temporal-network
