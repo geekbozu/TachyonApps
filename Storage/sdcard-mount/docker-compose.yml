@@ -23,12 +23,12 @@ services:
         echo "SD card already mounted at $$MOUNT_POINT";
       else
         echo "Mounting $$DEVICE to $$MOUNT_POINT...";
-        mount $$DEVICE $$MOUNT_POINT && echo "Successfully mounted SD card" || exit 1;
+        mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Successfully mounted SD card" || exit 1;
       fi;
       
       if ! grep -q "$$DEVICE" /host_etc/fstab 2>/dev/null; then
         FSTYPE=$$(blkid -s TYPE -o value "$$DEVICE" 2>/dev/null || echo "auto");
-        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,nofail 0 2" >> /host_etc/fstab;
+        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,umask=000,nofail 0 2" >> /host_etc/fstab;
         echo "Added to fstab";
       fi;
       
@@ -37,7 +37,7 @@ services:
       while true; do
         if ! mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
           echo "WARNING: Mount lost, remounting...";
-          mount $$DEVICE $$MOUNT_POINT && echo "Remounted successfully" || echo "Remount failed";
+          mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Remounted successfully" || echo "Remount failed";
         fi;
         sleep 300;
       done

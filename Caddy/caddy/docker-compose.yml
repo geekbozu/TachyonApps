@@ -37,32 +37,47 @@ services:
         mkdir -p /caddy/etc;
         cat > /caddy/etc/Caddyfile << 'EOF'
         {
-          local_certs
-          skip_install_trust
+          email {env.LETSENCRYPT_EMAIL}
+          acme_dns porkbun {
+            api_key {env.PORKBUN_API_KEY}
+            api_secret_key {env.PORKBUN_SECRET_KEY}
+          }
         }
 
-        https://tachyon.local {
-          redir https://kanban.tachyon.local permanent
+        *.internal.keepdream.in {
+
+          @adguard host adguard.internal.keepdream.in
+          handle @adguard {
+            reverse_proxy adguardhome:3000
+          }
+
+          @wireguard host wireguard.internal.keepdream.in
+          handle @wireguard {
+            reverse_proxy wg-easy:51821
+          }
+
+          @notebook host notebook.internal.keepdream.in
+          handle @notebook {
+            reverse_proxy open-notebook:8502
+          }
+
+          @notebook-api host notebook-api.internal.keepdream.in
+          handle @notebook-api {
+            reverse_proxy open-notebook:5055
+          }
+
+          @flux host flux.internal.keepdream.in
+          handle @flux {
+            reverse_proxy flux-web:3000
+          }
+
+          handle {
+            respond "Not Found" 404
+          }
         }
 
-        https://kanban.tachyon.local {
-          reverse_proxy veritas-kanban:3001
-        }
-
-        https://adguard.tachyon.local {
-          reverse_proxy adguardhome:3000
-        }
-
-        https://wireguard.tachyon.local {
-          reverse_proxy wg-easy:51821
-        }
-
-        https://notebook.tachyon.local {
-          reverse_proxy open-notebook:8502
-        }
-
-        https://notebook-api.tachyon.local {
-          reverse_proxy open-notebook:5055
+        internal.keepdream.in {
+          redir https://flux.internal.keepdream.in permanent
         }
         EOF
         # Remove leading whitespace from each line
@@ -72,8 +87,11 @@ services:
     restart: "no"
 
   caddy:
-    image: caddy:2-alpine
+    build: .
+    image: caddy-porkbun:latest
     container_name: caddy
+    env_file:
+      - /mnt/sdcard/caddy/.env
     ports:
       - "80:80"
       - "443:443"

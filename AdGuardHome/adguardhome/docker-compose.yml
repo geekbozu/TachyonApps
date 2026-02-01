@@ -72,7 +72,6 @@ services:
   dns-provision:
     image: mikefarah/yq:latest
     container_name: adguardhome-dns-provision
-    user: root
     volumes:
       - /mnt/sdcard/adguardhome:/config
     depends_on:
@@ -102,6 +101,16 @@ services:
         else
           echo "Adding DNS rewrite: $$WILDCARD -> $$TACHYON_IP";
           yq -i ".filtering.rewrites += [{\"domain\": \"$$WILDCARD\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        # Add wildcard domain for internal.keepdream.in
+        WILDCARD_INTERNAL="*.internal.keepdream.in";
+        if yq -e ".filtering.rewrites[] | select(.domain == \"$$WILDCARD_INTERNAL\")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for $$WILDCARD_INTERNAL already exists.";
+        else
+          echo "Adding DNS rewrite: $$WILDCARD_INTERNAL -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"$$WILDCARD_INTERNAL\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
           sync;
         fi;
         

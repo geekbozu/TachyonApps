@@ -1,7 +1,7 @@
 services:
   mount-check:
     image: alpine:latest
-    container_name: veritas-kanban-mount-check
+    container_name: flux-mount-check
     volumes:
       - /mnt/sdcard:/mnt/sdcard:ro
     command: >
@@ -21,27 +21,21 @@ services:
       '
     restart: "no"
 
-  veritas-kanban:
-    build: ..\veritas-kanban-repo
-    image: veritas-kanban:latest
-    container_name: veritas-kanban
-    user: root
-    env_file:
-      - /mnt/sdcard/veritas-kanban/.env
-    environment:
-      - CORS_ORIGINS=https://kanban.tachyon.local,https://tachyon.local,http://localhost:3001
-      - DISABLE_HTTPS_UPGRADE=true
-      - CSP_REPORT_ONLY=true
-    ports:
-      - "3001:3001"
-    volumes:
-      - /mnt/sdcard/veritas-kanban/data:/app/data
-      - /mnt/sdcard/veritas-kanban/.veritas-kanban:/app/.veritas-kanban
-    networks:
-      - proxy-network
+  flux:
+    build: ..\flux-repo
+    container_name: flux-web
     depends_on:
       mount-check:
         condition: service_completed_successfully
+    ports:
+      - "3100:3000"
+    volumes:
+      - /mnt/sdcard/flux/data:/app/packages/data:rw
+      - /mnt/sdcard/flux/home:/home/flux:rw
+    environment:
+      - FLUX_DATA=/app/packages/data/data.sqlite
+    networks:
+      - proxy-network
     restart: unless-stopped
 
 networks:

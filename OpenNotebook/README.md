@@ -4,8 +4,8 @@ Collaborative AI notebook environment with SurrealDB backend.
 
 ## Access
 
-- **HTTPS (via Caddy)**: https://notebook.tachyon.local
-- **API (via Caddy)**: https://notebook-api.tachyon.local
+- **HTTPS (via Caddy)**: https://notebook.internal.keepdream.in
+- **API (via Caddy)**: https://notebook-api.internal.keepdream.in
 - **Direct Web UI**: http://192.168.68.73:8502
 - **Direct API**: http://192.168.68.73:5055
 

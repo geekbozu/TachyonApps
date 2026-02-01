@@ -4,17 +4,21 @@ Network-wide ads & trackers blocking DNS server with web UI.
 
 ## Access
 
-- **HTTPS (via Caddy)**: https://adguard.tachyon.local
+- **HTTPS (via Caddy)**: https://adguard.internal.keepdream.in
 - **Direct**: http://192.168.68.73:3000
 
 ## DNS Auto-Provisioning
 
 The `dns-provision` init container automatically adds DNS rewrites for all TachyonApps services:
 
-- `*.tachyon.local` → 192.168.68.73
+- `*.internal.keepdream.in` → 192.168.68.73 (local Tachyon IP)
+- `*.tachyon.local` → 192.168.68.73 (legacy support)
 - `tachyon.local` → 192.168.68.73
 
-This enables all `*.tachyon.local` subdomains to resolve to the Tachyon device.
+This enables:
+1. Internal DNS resolution for services behind WireGuard
+2. Valid Let's Encrypt certificates via DNS-01 challenge
+3. Traffic stays on local network while using public domain names
 
 ## Deployment
 

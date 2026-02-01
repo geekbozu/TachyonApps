@@ -4,7 +4,7 @@ Easy-to-manage VPN server with web UI.
 
 ## Access
 
-- **HTTPS (via Caddy)**: https://wireguard.tachyon.local
+- **HTTPS (via Caddy)**: https://wireguard.internal.keepdream.in
 - **Direct Web UI**: http://192.168.68.73:51831
 
 ## Ports

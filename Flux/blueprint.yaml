@@ -1,0 +1,49 @@
+slug: flux-container
+type: Task Management
+category: "Productivity"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "Kanban", "Task Management", "AI", "MCP", "Productivity"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Flux"
+shortDescription: Open-source, AI-powered Kanban board with MCP integration for LLM-driven task management.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: flux
+introduction: |
+  Flux is a completely open, hackable, unopinionated task management engine with built-in MCP (Model Context Protocol) integration that lets humans, AI agents, and automations work together.
+
+description: |
+  Flux is your ultimate task management sidekick – a lightning-fast Kanban board that lets humans, AI agents, and automations team up to crush chaos. With built-in MCP (Model Context Protocol) integration, your LLMs can jump in and run the show: creating tasks, updating statuses, and keeping everything in sync.
+  
+  This deployment includes:
+  - Flux web interface on port 3000
+  - SQLite-based data persistence
+  - MCP server support for AI agent integration
+  - RESTful API for automations
+  - Real-time updates via SSE
+  - Persistent storage on SD card for firmware re-install resilience
+  
+  Features:
+  - Multi-Project Kanban Boards: Juggle epics, tasks, and dependencies
+  - Task Dependencies: See what's blocked at a glance
+  - MCP Integration: Let LLMs list, create, update, or delete tasks programmatically
+  - Real-Time Updates: SSE keeps everyone in sync
+  - Webhooks: Integrate with Slack, GitHub, CI/CD
+  - API-First Design: Full REST endpoints for ultimate control
+  - Git-Native Sync: flux push/pull syncs via flux-data branch
+  - CLI-First: Full CLI with MCP parity
+  - Agent Memory: Task comments for persistent context across sessions
+  - Priority System: P0/P1/P2 priorities for agent task ordering
+  - Blob Storage: Attach files (images, docs, logs) to tasks
+  
+  This deployment is configured with persistent storage on /mnt/sdcard for firmware re-install resilience.
+  
+  For additional documentation, see: https://github.com/sirsjg/flux/tree/main/docs

@@ -4,13 +4,13 @@ This repository contains a collection of containerized applications ("Blueprints
 
 ## Architecture & conventions
 
-- **App Structure**: Each application resides in its own top-level directory (e.g., [VeritasKanban](../VeritasKanban)).
-- **Blueprint Files**: Every app must have a [blueprint.yaml](../VeritasKanban/blueprint.yaml) file at its root containing metadata like `slug`, `version`, and `containers`.
-- **Docker Compose**: The actual deployment logic is in a subdirectory (e.g., [veritas-kanban/docker-compose.yml](../VeritasKanban/veritas-kanban/docker-compose.yml)).
+- **App Structure**: Each application resides in its own top-level directory (e.g., [AdGuardHome](../AdGuardHome)).
+- **Blueprint Files**: Every app must have a [blueprint.yaml](../AdGuardHome/blueprint.yaml) file at its root containing metadata like `slug`, `version`, and `containers`.
+- **Docker Compose**: The actual deployment logic is in a subdirectory (e.g., [adguardhome/docker-compose.yml](../AdGuardHome/adguardhome/docker-compose.yml)).
 - **Persistent Storage**:
   - All apps MUST store persistent data on the SD card located at `/mnt/sdcard`.
   - Path convention: `/mnt/sdcard/<app-slug>/...`
-  - Example: `volumes: [/mnt/sdcard/veritas-kanban/data:/app/data]` in [VeritasKanban/veritas-kanban/docker-compose.yml](../VeritasKanban/veritas-kanban/docker-compose.yml).
+  - Example: `volumes: [/mnt/sdcard/adguardhome/data:/app/data]` in [AdGuardHome/adguardhome/docker-compose.yml](../AdGuardHome/adguardhome/docker-compose.yml).
 - **Mount Dependency**:
   - Apps relying on `/mnt/sdcard` must include a `mount-check` service that waits for the mount point to be ready before starting the main service.
   - Refer to [Wireguard/wg-easy/docker-compose.yml](../Wireguard/wg-easy/docker-compose.yml) for the standard `mount-check` implementation.

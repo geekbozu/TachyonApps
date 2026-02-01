@@ -24,7 +24,6 @@ services:
   surrealdb:
     image: surrealdb/surrealdb:v2
     command: start --username $${SURREAL_USER} --password $${SURREAL_PASSWORD} --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
-    user: root  # Required for bind mounts on Linux (SurrealDB runs as non-root by default)
     env_file:
       - /mnt/sdcard/open-notebook/.env
     ports:
@@ -45,7 +44,7 @@ services:
     env_file:
       - /mnt/sdcard/open-notebook/.env
     environment:
-      - API_URL=https://notebook-api.tachyon.local
+      - API_URL=https://notebook-api.internal.keepdream.in
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API

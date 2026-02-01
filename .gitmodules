@@ -1,3 +1,4 @@
-[submodule "VeritasKanban/veritas-kanban-repo"]
-	path = VeritasKanban/veritas-kanban-repo
-	url = https://github.com/BradGroux/veritas-kanban.git
+[submodule "Flux/flux-repo"]
+	path = Flux/flux-repo
+	url = https://github.com/sirsjg/flux.git
+
