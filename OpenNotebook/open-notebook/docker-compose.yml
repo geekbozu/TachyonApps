@@ -31,6 +31,8 @@ services:
       - "8000:8000"
     volumes:
       - /mnt/sdcard/open-notebook/surreal_data:/mydata
+    networks:
+      - proxy-network
     depends_on:
       mount-check:
         condition: service_completed_successfully
@@ -42,15 +44,23 @@ services:
     pull_policy: always
     env_file:
       - /mnt/sdcard/open-notebook/.env
+    environment:
+      - API_URL=https://notebook-api.tachyon.local
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API
     volumes:
       - /mnt/sdcard/open-notebook/notebook_data:/app/data
+    networks:
+      - proxy-network
     depends_on:
       mount-check:
         condition: service_completed_successfully
       surrealdb:
         condition: service_started
     restart: unless-stopped
+
+networks:
+  proxy-network:
+    external: true
 

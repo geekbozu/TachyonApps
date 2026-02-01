@@ -1,1 +1,18 @@
+# Device Specific Configuration
 .particle_env.yaml
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Logs
+*.log

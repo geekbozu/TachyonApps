@@ -1,0 +1,3 @@
+[submodule "VeritasKanban/veritas-kanban-repo"]
+	path = VeritasKanban/veritas-kanban-repo
+	url = https://github.com/BradGroux/veritas-kanban.git

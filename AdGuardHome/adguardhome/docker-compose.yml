@@ -69,6 +69,60 @@ services:
       '
     restart: "no"
 
+  dns-provision:
+    image: mikefarah/yq:latest
+    container_name: adguardhome-dns-provision
+    user: root
+    volumes:
+      - /mnt/sdcard/adguardhome:/config
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "=== AdGuard Home DNS Provisioning ===";
+        CONFIG_FILE="/config/AdGuardHome.yaml";
+        TACHYON_IP=192.168.68.73;
+        echo "Device IP: $$TACHYON_IP";
+        echo "Looking for config at: $$CONFIG_FILE";
+        ls -la /config/ || echo "Cannot list /config";
+        
+        if [ ! -f "$$CONFIG_FILE" ]; then
+          echo "Config not found, skipping (will be created on first AdGuard run).";
+          exit 0;
+        fi;
+        
+        echo "Config found, checking rewrites...";
+        
+        # Add wildcard domain
+        WILDCARD="*.tachyon.local";
+        if yq -e ".filtering.rewrites[] | select(.domain == \"$$WILDCARD\")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for $$WILDCARD already exists.";
+        else
+          echo "Adding DNS rewrite: $$WILDCARD -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"$$WILDCARD\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        # Add base domain
+        if yq -e ".filtering.rewrites[] | select(.domain == \"tachyon.local\")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for tachyon.local already exists.";
+        else
+          echo "Adding DNS rewrite: tachyon.local -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"tachyon.local\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        echo "Forcing filesystem sync...";
+        sync;
+        sleep 1;
+        
+        echo "DNS provisioning complete.";
+        echo "Current rewrites:";
+        yq ".filtering.rewrites" "$$CONFIG_FILE";
+    restart: "no"
+
   adguardhome:
     image: adguard/adguardhome:latest
     container_name: adguardhome
@@ -78,10 +132,14 @@ services:
         condition: service_started
       mount-check:
         condition: service_completed_successfully
+      dns-provision:
+        condition: service_completed_successfully
     
     environment:
       - TZ=UTC
     
+    networks:
+      - proxy-network
     ports:
       - "53:53/tcp"
       - "53:53/udp"
@@ -101,3 +159,7 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_BIND_SERVICE
+
+networks:
+  proxy-network:
+    external: true

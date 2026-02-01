@@ -22,18 +22,28 @@ services:
     restart: "no"
 
   veritas-kanban:
-    image: bradgroux/veritas-kanban:latest
+    build: ..\veritas-kanban-repo
+    image: veritas-kanban:latest
     container_name: veritas-kanban
+    user: root
+    env_file:
+      - /mnt/sdcard/veritas-kanban/.env
     environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - DATA_DIR=/app/data
-      - VERITAS_AUTH_ENABLED=false
+      - CORS_ORIGINS=https://kanban.tachyon.local,https://tachyon.local,http://localhost:3001
+      - DISABLE_HTTPS_UPGRADE=true
+      - CSP_REPORT_ONLY=true
     ports:
       - "3001:3001"
     volumes:
       - /mnt/sdcard/veritas-kanban/data:/app/data
+      - /mnt/sdcard/veritas-kanban/.veritas-kanban:/app/.veritas-kanban
+    networks:
+      - proxy-network
     depends_on:
       mount-check:
         condition: service_completed_successfully
     restart: unless-stopped
+
+networks:
+  proxy-network:
+    external: true

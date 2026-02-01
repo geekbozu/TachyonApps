@@ -1,0 +1,42 @@
+# AdGuard Home
+
+Network-wide ads & trackers blocking DNS server with web UI.
+
+## Access
+
+- **HTTPS (via Caddy)**: https://adguard.tachyon.local
+- **Direct**: http://192.168.68.73:3000
+
+## DNS Auto-Provisioning
+
+The `dns-provision` init container automatically adds DNS rewrites for all TachyonApps services:
+
+- `*.tachyon.local` → 192.168.68.73
+- `tachyon.local` → 192.168.68.73
+
+This enables all `*.tachyon.local` subdomains to resolve to the Tachyon device.
+
+## Deployment
+
+```powershell
+$env:DOCKER_HOST = "npipe:////./pipe/podman-machine-default"
+cd AdGuardHome
+particle container push --device 422a0600000000002e257941
+```
+
+## Storage
+
+- `/mnt/sdcard/adguardhome/` - AdGuard Home configuration (AdGuardHome.yaml)
+- Anonymous volume for work data
+
+## Network
+
+- Port 53 (TCP/UDP) - DNS
+- Port 3000 - Web UI
+- Connected to `proxy-network` for Caddy reverse proxy
+
+## Init Containers
+
+1. `resolved-fix` - Disables systemd-resolved conflict on port 53
+2. `mount-check` - Verifies SD card is mounted
+3. `dns-provision` - Auto-provisions DNS rewrites using yq

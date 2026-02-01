@@ -1,0 +1,39 @@
+slug: caddy-container
+type: Reverse Proxy
+category: "Network"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Service", "Proxy", "HTTPS", "SSL"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Caddy"
+shortDescription: Fast, automatic HTTPS reverse proxy with easy configuration.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: caddy
+introduction: |
+  Caddy is a powerful, enterprise-ready web server with automatic HTTPS. Perfect for homelab reverse proxy setups.
+
+description: |
+  Caddy provides automatic HTTPS certificate provisioning and renewal, making it ideal for securing internal services.
+  
+  This deployment includes:
+  - Automatic HTTPS with self-signed certificates for local domains
+  - Reverse proxy configuration for internal services
+  - Persistent storage for certificates and configuration
+  - Easy Caddyfile-based configuration
+  
+  Features:
+  - Automatic TLS certificate management
+  - HTTP/2 and HTTP/3 support
+  - Simple Caddyfile configuration syntax
+  - Built-in reverse proxy
+  - Health checks
+  
+  This deployment is configured with persistent storage on /mnt/sdcard for firmware re-install resilience.
