@@ -24,14 +24,12 @@ services:
     restart: "no"
 
   pop3-gmail-importer:
-    build:
-      context: ..
-      dockerfile: pop3-gmail-importer/Dockerfile
+    build: ..
     container_name: pop3-gmail-importer
     restart: unless-stopped
-    env_file: .env
+    env_file: /mnt/sdcard/pop3-gmail-importer/.env
     volumes:
-      - /mnt/sdcard/pop3-gmail-importer:/data
+      - /mnt/sdcard/pop3-gmail-importer/config:/app/data
     depends_on:
       mount-check:
         condition: service_completed_successfully
