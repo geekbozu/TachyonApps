@@ -35,15 +35,12 @@ services:
         condition: service_completed_successfully
     command: ["python", "main.py"]
 
-  test-connection:
-    build: .
-    container_name: pop3-gmail-importer-test-connection
-    env_file: .env
-    volumes:
-      - /mnt/sdcard/pop3-gmail-importer:/data
-    entrypoint: ["python", "test_connection.py"]
-    depends_on:
-      mount-check:
-        condition: service_completed_successfully
-    restart: "no"
+  # The `test-connection` helper service was removed from this compose file.
+  # For headless deployments, run `test_connection.py` on a machine with a browser
+  # to perform the initial OAuth flow and generate token files, then copy the
+  # generated token files to the device under `/mnt/sdcard/pop3-gmail-importer/tokens/`.
+  # Example (on device):
+  #   docker compose run --rm pop3-gmail-importer python test_connection.py
+  # Note: running the command above on the device will also attempt OAuth in a
+  # browser and is not suitable for pure headless environments without a browser.
 

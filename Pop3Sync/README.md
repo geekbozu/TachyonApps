@@ -31,11 +31,54 @@ Testing & first run
   docker compose up -d
   ```
 
-5. For an initial OAuth login you can run the `test-connection` service (it will open a browser on first run so you can authenticate):
+Headless token generation & migration
+------------------------------------
+If your target device is headless, perform the OAuth flow on another machine (e.g., your laptop), then copy the resulting token files to the device. This avoids requiring an interactive browser on the headless device.
 
-  ```bash
-  docker compose run --rm test-connection
-  ```
+Steps:
+
+1. On a machine with a browser, clone the upstream repo and prepare the environment:
+
+```bash
+git clone https://github.com/tejastice/pop3-gmail-importer.git
+cd pop3-gmail-importer
+python -m venv venv
+source venv/bin/activate         # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env             # edit values to point to local files
+```
+
+2. Place your `credentials.json` in the project root (the script expects `credentials.json` path as configured in `.env`).
+
+3. Run the connection test to perform OAuth and create token files:
+
+```bash
+python test_connection.py
+```
+
+When the OAuth flow runs, a browser will open and prompt you to allow access. The script saves tokens under the path specified in `.env` (e.g., `tokens/token_account1.json`).
+
+4. Securely copy the token files to the headless device and place them under the persistent mount:
+
+```bash
+# On laptop (example):
+scp tokens/token_account1.json user@device:/mnt/sdcard/pop3-gmail-importer/tokens/
+# On the device, set strict permissions:
+ssh user@device 'chmod 600 /mnt/sdcard/pop3-gmail-importer/tokens/token_account1.json'
+```
+
+5. Verify on the device that the container can load and refresh the token by running the test-connection logic (non-interactive):
+
+```bash
+# This will check POP3 and attempt to use the token; it will not open a browser
+docker compose run --rm pop3-gmail-importer python test_connection.py
+```
+
+Notes & best practices
+- Refresh tokens issued to a **published** (non-Testing) Google OAuth app are long-lived. Test-mode tokens expire after 7 days—publish your OAuth consent screen to production to avoid that.
+- Always set token files to `600` and keep them on the device under `/mnt/sdcard/pop3-gmail-importer/tokens/`.
+- If a token is revoked or fails to refresh, re-run the OAuth flow on a machine with a browser and repeat the copy step.
+- Keep `credentials.json`, tokens, `.env`, `state/`, `backup/`, and `logs/` out of git and backed up securely.
 
 Security notes
 - Files `credentials.json`, `tokens/`, `.env`, `state/`, `backup/`, and `logs/` are all ignored by git and must never be checked in. Keep them on the device in `/mnt/sdcard/pop3-gmail-importer`.

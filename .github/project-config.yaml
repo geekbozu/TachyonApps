@@ -1,0 +1,11 @@
+# Project configuration for PM Agent
+project:
+  owner: "geekbozu"
+  owner_type: "user"
+  number: 3
+  name: "TestingWIthoutRepo"
+
+# Operational settings
+audit_comment: true
+default_issue_repo: "geekbozu/TachyonApps"
+sync_user_front_matter: true
