@@ -1,0 +1,23 @@
+slug: pop3-gmail-importer
+type: "Messaging"
+category: "Email"
+expertiseLevel: "ADVANCED"
+tags: ["Service", "Email", "Gmail", "POP3"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "POP3 → Gmail Importer"
+shortDescription: "Import emails from POP3 accounts into Gmail using the Gmail API (OAuth2)."
+version: 1.0.0
+models: []
+language: ["Python"]
+cloudServices:
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies: []
+containers: pop3-gmail-importer
+introduction: |
+  Imports emails from one or more POP3 accounts directly into Gmail using the Gmail API. Designed to run as a durable container with persistent storage for tokens, state, backups and logs.
+
+description: |
+  This deployment uses a git submodule to keep the upstream source tree intact, and places the `Dockerfile` and `docker-compose.yml` at the app root so we can build an image that references the submodule code. Persisted files (credentials.json, tokens, state, backup, logs) are stored on `/mnt/sdcard/pop3-gmail-importer` to survive device reboots and OS re-installs.
