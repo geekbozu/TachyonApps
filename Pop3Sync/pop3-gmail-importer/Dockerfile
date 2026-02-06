@@ -6,7 +6,8 @@ RUN useradd -m -u 1000 runner || true
 WORKDIR /app
 
 # Copy upstream source (submodule) into image; assumes submodule is present at build time
-COPY pop3-gmail-importer/ /app/
+# The upstream submodule is stored at ../pop3-gmail-importer-upstream relative to the build context
+COPY pop3-gmail-importer-upstream/ /app/
 
 RUN pip install --no-cache-dir -r requirements.txt
 

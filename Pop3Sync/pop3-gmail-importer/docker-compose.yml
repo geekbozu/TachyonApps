@@ -24,7 +24,9 @@ services:
     restart: "no"
 
   pop3-gmail-importer:
-    build: .
+    build:
+      context: ..
+      dockerfile: pop3-gmail-importer/Dockerfile
     container_name: pop3-gmail-importer
     restart: unless-stopped
     env_file: .env
