@@ -19,6 +19,11 @@ VOLUME ["/data"]
 # Create data directories with safe permissions
 RUN mkdir -p /data/tokens /data/state /data/backup /data/logs && chown -R runner:runner /data && chmod 700 /data/tokens
 
+# Ensure /app/state exists and is owned by the unprivileged user so a named volume
+# initialized from the image will have the correct ownership (avoids permission
+# denied when the container runs as `runner`).
+RUN mkdir -p /app/state && chown -R runner:runner /app/state && chmod 700 /app/state
+
 USER runner
 
 CMD ["python", "main.py"]

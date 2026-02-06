@@ -28,8 +28,13 @@ services:
     container_name: pop3-gmail-importer
     restart: unless-stopped
     env_file: /mnt/sdcard/pop3-gmail-importer/.env
+    # Storage mapping:
+    # - Use Docker volume `pop3_state` for the UIDL state file at /app/state (durable and avoids FAT permission issues)
+    # - Keep backups, logs, tokens and config on the SD card under /mnt/sdcard/pop3-gmail-importer
+    #   Set values in your `.env` accordingly, e.g. ACCOUNT1_BACKUP_DIR=/app/backup and ACCOUNT1_GMAIL_TOKEN_FILE=/data/tokens/token.json
     volumes:
       - /mnt/sdcard/pop3-gmail-importer/config:/app/data
+      - pop3_state:/app/state
     depends_on:
       mount-check:
         condition: service_completed_successfully
@@ -43,4 +48,7 @@ services:
   #   docker compose run --rm pop3-gmail-importer python test_connection.py
   # Note: running the command above on the device will also attempt OAuth in a
   # browser and is not suitable for pure headless environments without a browser.
+
+volumes:
+  pop3_state:
 
