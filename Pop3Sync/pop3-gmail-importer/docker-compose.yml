@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  mount-check:
+    image: alpine:latest
+    container_name: pop3-gmail-importer-mount-check
+    volumes:
+      - /mnt/sdcard:/mnt/sdcard:ro
+    command: >
+      sh -c '
+      echo "Waiting for SD card mount...";
+      for i in 1 2 3 4 5; do
+        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "SD card mount verified.";
+          exit 0;
+        fi;
+        echo "Mount not ready, waiting 5 seconds... (attempt $i/5)";
+        sleep 5;
+      done;
+      echo "ERROR: SD card mount not available after 25 seconds.";
+      echo "Please ensure the sdcard-mount container is running.";
+      exit 1;
+      '
+    restart: "no"
+
+  pop3-gmail-importer:
+    build: ..
+    container_name: pop3-gmail-importer
+    restart: unless-stopped
+    env_file: /mnt/sdcard/pop3-gmail-importer/.env
+    # Storage mapping:
+    # - Use Docker volume `pop3_state` for the UIDL state file at /app/state (durable and avoids FAT permission issues)
+    # - Keep backups, logs, tokens and config on the SD card under /mnt/sdcard/pop3-gmail-importer
+    #   Set values in your `.env` accordingly, e.g. ACCOUNT1_BACKUP_DIR=/app/backup and ACCOUNT1_GMAIL_TOKEN_FILE=/data/tokens/token.json
+    volumes:
+      - /mnt/sdcard/pop3-gmail-importer/config:/app/data
+      - pop3_state:/app/state
+    depends_on:
+      mount-check:
+        condition: service_completed_successfully
+    command: ["python", "main.py"]
+
+  # The `test-connection` helper service was removed from this compose file.
+  # For headless deployments, run `test_connection.py` on a machine with a browser
+  # to perform the initial OAuth flow and generate token files, then copy the
+  # generated token files to the device under `/mnt/sdcard/pop3-gmail-importer/tokens/`.
+  # Example (on device):
+  #   docker compose run --rm pop3-gmail-importer python test_connection.py
+  # Note: running the command above on the device will also attempt OAuth in a
+  # browser and is not suitable for pure headless environments without a browser.
+
+volumes:
+  pop3_state:
+

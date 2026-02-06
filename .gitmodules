@@ -2,3 +2,6 @@
 	path = Flux/flux-repo
 	url = https://github.com/sirsjg/flux.git
 
+[submodule "Pop3Sync/pop3-gmail-importer"]
+	path = Pop3Sync/pop3-gmail-importer-upstream
+	url = https://github.com/tejastice/pop3-gmail-importer.git
