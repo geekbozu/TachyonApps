@@ -4,10 +4,10 @@ POP3 → Gmail Importer
 This folder contains deployment metadata and containerization for the upstream project: https://github.com/tejastice/pop3-gmail-importer
 
 Quick overview
-- Add the upstream repository as a git submodule inside this folder:
+- Add the upstream repository as a git submodule inside this folder (note: we keep the upstream code in `pop3-gmail-importer-upstream` to separate it from the deployment):
 
   ```bash
-  git submodule add https://github.com/tejastice/pop3-gmail-importer.git Pop3Sync/pop3-gmail-importer
+  git submodule add https://github.com/tejastice/pop3-gmail-importer.git Pop3Sync/pop3-gmail-importer-upstream
   git submodule update --init --recursive
   ```
 
@@ -24,10 +24,10 @@ Testing & first run
 1. Ensure the `pop3-gmail-importer` submodule is present (see step above).
 2. Copy `.env.example` to `.env` and update values (notably `ACCOUNT*_GMAIL_CREDENTIALS_FILE` and `ACCOUNT*_GMAIL_TOKEN_FILE`).
 3. Place `credentials.json` into `/mnt/sdcard/pop3-gmail-importer/credentials.json` and create directory `/mnt/sdcard/pop3-gmail-importer/tokens/` with proper permissions.
-4. Start services:
+4. Start services (on the device):
 
   ```bash
-  cd Pop3Sync
+  cd Pop3Sync/pop3-gmail-importer
   docker compose up -d
   ```
 
@@ -37,17 +37,17 @@ If your target device is headless, perform the OAuth flow on another machine (e.
 
 Steps:
 
-1. On a machine with a browser, clone the upstream repo and prepare the environment:
+1. On a machine with a browser, either clone the upstream repo or use the included submodule snapshot and prepare the environment. If you are working inside this repository, use the submodule path:
 
 ```bash
-git clone https://github.com/tejastice/pop3-gmail-importer.git
-cd pop3-gmail-importer
+cd Pop3Sync/pop3-gmail-importer-upstream
 python -m venv venv
 source venv/bin/activate         # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env             # edit values to point to local files
 ```
 
+Or, clone directly to a separate machine and follow the same steps.
 2. Place your `credentials.json` in the project root (the script expects `credentials.json` path as configured in `.env`).
 
 3. Run the connection test to perform OAuth and create token files:
