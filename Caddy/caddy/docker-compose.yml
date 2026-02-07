@@ -101,11 +101,13 @@ services:
       - /mnt/sdcard/caddy/data:/data
       - /mnt/sdcard/caddy/config:/config
     networks:
-      proxy-network:
-        external: true
+      - proxy-network
     depends_on:
       mount-check:
         condition: service_completed_successfully
       caddy-config:
         condition: service_completed_successfully
     restart: unless-stopped
+networks:
+  proxy-network:
+    external: true
