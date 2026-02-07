@@ -43,3 +43,8 @@ services:
       done
       '
     restart: unless-stopped
+
+networks:
+  proxy-network:
+    name: proxy-network
+    driver: bridge
