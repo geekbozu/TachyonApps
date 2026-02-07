@@ -1,0 +1,532 @@
+version: '2.4'
+
+services:
+  sdcard-mount:
+    image: alpine:latest
+    container_name: sdcard-mount
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /dev:/dev
+      - /etc:/host_etc
+      - /mnt:/mnt:shared
+      - /proc:/host_proc
+    command: >
+      sh -c '
+      echo "=== SD Card Auto-Mount Service ===";
+      DEVICE="/dev/mmcblk1p1";
+      MOUNT_POINT="/mnt/sdcard";
+      
+      ls -la $$DEVICE || exit 1;
+      mkdir -p $$MOUNT_POINT;
+      
+      if mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
+        echo "SD card already mounted at $$MOUNT_POINT";
+      else
+        echo "Mounting $$DEVICE to $$MOUNT_POINT...";
+        mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Successfully mounted SD card" || exit 1;
+      fi;
+      
+      if ! grep -q "$$DEVICE" /host_etc/fstab 2>/dev/null; then
+        FSTYPE=$$(blkid -s TYPE -o value "$$DEVICE" 2>/dev/null || echo "auto");
+        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,umask=000,nofail 0 2" >> /host_etc/fstab;
+        echo "Added to fstab";
+      fi;
+      
+      echo "SD card ready at $$MOUNT_POINT";
+      
+      while true; do
+        if ! mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
+          echo "WARNING: Mount lost, remounting...";
+          mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Remounted successfully" || echo "Remount failed";
+        fi;
+        sleep 300;
+      done
+      '
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mountpoint -q /mnt/sdcard || exit 1"]
+      interval: 10s
+      retries: 6
+      start_period: 10s
+
+  caddy-config:
+    image: alpine:latest
+    container_name: caddy-config
+    volumes:
+      - /mnt/sdcard/caddy:/caddy
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        echo "=== Writing Caddyfile ===";
+        mkdir -p /caddy/etc;
+        cat > /caddy/etc/Caddyfile << 'EOF'
+        {
+          email {env.LETSENCRYPT_EMAIL}
+          acme_dns porkbun {
+            api_key {env.PORKBUN_API_KEY}
+            api_secret_key {env.PORKBUN_SECRET_KEY}
+          }
+        }
+
+        *.internal.keepdream.in {
+
+          @adguard host adguard.internal.keepdream.in
+          handle @adguard {
+            reverse_proxy adguardhome:3000
+          }
+
+          @wireguard host wireguard.internal.keepdream.in
+          handle @wireguard {
+            reverse_proxy wg-easy:51821
+          }
+
+          @notebook host notebook.internal.keepdream.in
+          handle @notebook {
+            reverse_proxy open-notebook:8502
+          }
+
+          @notebook-api host notebook-api.internal.keepdream.in
+          handle @notebook-api {
+            reverse_proxy open-notebook:5055
+          }
+
+          @flux host flux.internal.keepdream.in
+          handle @flux {
+            reverse_proxy flux-web:3000
+          }
+
+          handle {
+            respond "Not Found" 404
+          }
+        }
+
+        internal.keepdream.in {
+          redir https://flux.internal.keepdream.in permanent
+        }
+        EOF
+        sed -i 's/^        //' /caddy/etc/Caddyfile;
+        echo "Caddyfile written:";
+        cat /caddy/etc/Caddyfile;
+    restart: "no"
+
+  caddy:
+    build: ../Caddy/caddy
+    image: caddy-porkbun:latest
+    container_name: caddy
+    env_file:
+      - /mnt/sdcard/caddy/.env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - /mnt/sdcard/caddy/etc/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /mnt/sdcard/caddy/data:/data
+      - /mnt/sdcard/caddy/config:/config
+    networks:
+      - proxy-network
+    depends_on:
+      caddy-config:
+        condition: service_completed_successfully
+      sdcard-mount:
+        condition: service_healthy
+    restart: unless-stopped
+
+  resolved-fix:
+    image: alpine:latest
+    container_name: adguardhome-resolved-fix
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /etc:/host_etc
+      - /run:/host_run
+      - /proc:/host_proc
+    command: >
+      sh -c '
+      echo "Checking for systemd-resolved conflicts...";
+      if [ -f /host_etc/systemd/resolved.conf ] && (pgrep -x systemd-resolve > /dev/null 2>&1 || pgrep systemd-resolved > /dev/null 2>&1); then
+        echo "systemd-resolved detected, applying fix...";
+        mkdir -p /host_etc/systemd/resolved.conf.d;
+        echo "[Resolve]" > /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        echo "DNS=127.0.0.1" >> /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        echo "DNSStubListener=no" >> /host_etc/systemd/resolved.conf.d/adguardhome.conf;
+        if [ -f /host_etc/resolv.conf ] && [ ! -L /host_etc/resolv.conf ]; then
+          echo "Backing up resolv.conf...";
+          cp /host_etc/resolv.conf /host_etc/resolv.conf.backup;
+        fi;
+        if [ -f /host_run/systemd/resolve/resolv.conf ]; then
+          echo "Creating resolv.conf symlink...";
+          ln -sf /run/systemd/resolve/resolv.conf /host_etc/resolv.conf;
+        fi;
+        echo "Attempting to reload systemd-resolved...";
+        if command -v nsenter > /dev/null 2>&1; then
+          nsenter --target 1 --mount --uts --ipc --net --pid systemctl reload-or-restart systemd-resolved && echo "Successfully reloaded systemd-resolved" || echo "Failed to reload systemd-resolved, you may need to run manually: systemctl reload-or-restart systemd-resolved";
+        else
+          echo "nsenter not available. Please run manually: systemctl reload-or-restart systemd-resolved";
+        fi;
+      else
+        echo "No systemd-resolved conflict detected or systemd-resolved not running.";
+        echo "Checking if port 53 is in use...";
+        if nsenter --target 1 --mount --uts --ipc --net --pid ss -tulnp 2>/dev/null | grep :53; then
+          echo "WARNING: Port 53 is in use. AdGuard Home may fail to start.";
+        else
+          echo "Port 53 appears to be free.";
+        fi;
+      fi
+      '
+    restart: "no"
+
+  dns-provision:
+    image: mikefarah/yq:latest
+    container_name: adguardhome-dns-provision
+    volumes:
+      - /mnt/sdcard/adguardhome:/config
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "=== AdGuard Home DNS Provisioning ===";
+        CONFIG_FILE="/config/AdGuardHome.yaml";
+        TACHYON_IP=192.168.68.73;
+        echo "Device IP: $$TACHYON_IP";
+        echo "Looking for config at: $$CONFIG_FILE";
+        ls -la /config/ || echo "Cannot list /config";
+        
+        if [ ! -f "$$CONFIG_FILE" ]; then
+          echo "Config not found, skipping (will be created on first AdGuard run).";
+          exit 0;
+        fi;
+        
+        echo "Config found, checking rewrites...";
+        
+        # Add wildcard domain
+        WILDCARD="*.tachyon.local";
+        if yq -e ".filtering.rewrites[] | select(.domain == "$$WILDCARD")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for $$WILDCARD already exists.";
+        else
+          echo "Adding DNS rewrite: $$WILDCARD -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"$$WILDCARD\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        # Add wildcard domain for internal.keepdream.in
+        WILDCARD_INTERNAL="*.internal.keepdream.in";
+        if yq -e ".filtering.rewrites[] | select(.domain == \"$$WILDCARD_INTERNAL\")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for $$WILDCARD_INTERNAL already exists.";
+        else
+          echo "Adding DNS rewrite: $$WILDCARD_INTERNAL -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"$$WILDCARD_INTERNAL\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        # Add base domain
+        if yq -e ".filtering.rewrites[] | select(.domain == \"tachyon.local\")" "$$CONFIG_FILE" > /dev/null 2>&1; then
+          echo "Rewrite for tachyon.local already exists.";
+        else
+          echo "Adding DNS rewrite: tachyon.local -> $$TACHYON_IP";
+          yq -i ".filtering.rewrites += [{\"domain\": \"tachyon.local\", \"answer\": \"$$TACHYON_IP\", \"enabled\": true}]" "$$CONFIG_FILE";
+          sync;
+        fi;
+        
+        echo "Forcing filesystem sync...";
+        sync;
+        sleep 1;
+        
+        echo "DNS provisioning complete.";
+        echo "Current rewrites:";
+        yq ".filtering.rewrites" "$$CONFIG_FILE";
+    restart: "no"
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    restart: unless-stopped
+    depends_on:
+      resolved-fix:
+        condition: service_started
+      dns-provision:
+        condition: service_completed_successfully
+      sdcard-mount:
+        condition: service_healthy
+      caddy:
+        condition: service_started
+    environment:
+      - TZ=UTC
+    networks:
+      - proxy-network
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000/tcp"
+    volumes:
+      - /mnt/sdcard/adguardhome:/opt/adguardhome/conf
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+
+  flux:
+    build: ../Flux/flux
+    container_name: flux-web
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    ports:
+      - "3100:3000"
+    volumes:
+      - /mnt/sdcard/flux/data:/app/packages/data:rw
+      - /mnt/sdcard/flux/home:/home/flux:rw
+    environment:
+      - FLUX_DATA=/app/packages/data/data.sqlite
+    networks:
+      - proxy-network
+    restart: unless-stopped
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    command: start --username $${SURREAL_USER} --password $${SURREAL_PASSWORD} --bind 0.0.0.0:8000 rocksdb:/mydata/mydatabase.db
+    env_file:
+      - /mnt/sdcard/open-notebook/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - /mnt/sdcard/open-notebook/surreal_data:/mydata
+    networks:
+      - proxy-network
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    restart: unless-stopped
+
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest
+    container_name: open-notebook
+    pull_policy: always
+    env_file:
+      - /mnt/sdcard/open-notebook/.env
+    environment:
+      - API_URL=https://notebook-api.internal.keepdream.in
+    ports:
+      - "8502:8502"
+      - "5055:5055"
+    volumes:
+      - /mnt/sdcard/open-notebook/notebook_data:/app/data
+    networks:
+      - proxy-network
+    depends_on:
+      surrealdb:
+        condition: service_started
+      sdcard-mount:
+        condition: service_healthy
+    restart: unless-stopped
+
+  wg-easy:
+    environment:
+      - INSECURE=true
+      - PORT=51821
+      - HOST=0.0.0.0
+      - DISABLE_IPV6=true
+    image: ghcr.io/wg-easy/wg-easy:15
+    container_name: wg-easy
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    networks:
+      wg:
+        ipv4_address: 10.42.42.42
+      proxy-network:
+    volumes:
+      - /mnt/sdcard/wireguard:/etc/wireguard
+    ports:
+      - "51830:51830/udp"
+      - "51831:51821/tcp"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+
+  postgresql:
+    image: postgres:16
+    container_name: temporal-postgresql
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    networks:
+      - temporal-network
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: temporal-admin-tools
+    restart: on-failure:6
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      sdcard-mount:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - SQL_PASSWORD=temporal
+    networks:
+      - temporal-network
+    entrypoint: ["/bin/sh"]
+    command: >
+      -c '
+      set -eu;
+      echo "Starting PostgreSQL schema setup...";
+      echo "Waiting for PostgreSQL port to be available...";
+      nc -z -w 10 postgresql 5432;
+      echo "PostgreSQL port is available";
+      
+      echo "Creating and setting up temporal database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned;
+      
+      echo "Creating and setting up visibility database...";
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility create;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility setup-schema -v 0.0;
+      temporal-sql-tool --plugin postgres12 --ep postgresql -u temporal -p 5432 --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned;
+      
+      echo "PostgreSQL schema setup complete";
+      '
+
+  temporal:
+    image: temporalio/server:1.29.1
+    container_name: temporal
+    depends_on:
+      temporal-admin-tools:
+        condition: service_completed_successfully
+      sdcard-mount:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - BIND_ON_IP=0.0.0.0
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    networks:
+      - temporal-network
+    ports:
+      - '7233:7233'
+    volumes:
+      - /mnt/sdcard/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 60
+
+  temporal-create-namespace:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: temporal-create-namespace
+    restart: on-failure:5
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DEFAULT_NAMESPACE=default
+    networks:
+      - temporal-network
+    entrypoint: ["/bin/sh"]
+    command: >
+      -c '
+      set -eu;
+      NAMESPACE=$${DEFAULT_NAMESPACE:-default};
+      TEMPORAL_ADDRESS=$${TEMPORAL_ADDRESS:-temporal:7233};
+      
+      echo "Waiting for Temporal server port to be available...";
+      nc -z -w 10 $$(echo $$TEMPORAL_ADDRESS | cut -d: -f1) $$(echo $$TEMPORAL_ADDRESS | cut -d: -f2);
+      echo "Temporal server port is available";
+      
+      echo "Waiting for Temporal server to be healthy...";
+      max_attempts=3;
+      attempt=0;
+      
+      until temporal operator cluster health --address $$TEMPORAL_ADDRESS; do
+        attempt=$$((attempt + 1));
+        if [ $$attempt -ge $$max_attempts ]; then
+          echo "Server did not become healthy after $$max_attempts attempts";
+          exit 1;
+        fi;
+        echo "Server not ready yet, waiting... (attempt $$attempt/$$max_attempts)";
+        sleep 5;
+      done;
+      
+      echo "Server is healthy, creating namespace \"$$NAMESPACE\"...";
+      temporal operator namespace describe -n $$NAMESPACE --address $$TEMPORAL_ADDRESS || temporal operator namespace create -n $$NAMESPACE --address $$TEMPORAL_ADDRESS;
+      echo "Namespace \"$$NAMESPACE\" created";
+      '
+
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    image: temporalio/ui:2.34.0
+    networks:
+      - temporal-network
+    ports:
+      - 8080:8080
+
+  pop3-gmail-importer:
+    build: ../Pop3Sync/pop3-gmail-importer
+    container_name: pop3-gmail-importer
+    restart: unless-stopped
+    env_file: /mnt/sdcard/pop3-gmail-importer/.env
+    volumes:
+      - /mnt/sdcard/pop3-gmail-importer/config:/app/data
+      - pop3_state:/app/state
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    command: ["python", "main.py"]
+
+networks:
+  proxy-network:
+    external: true
+  wg:
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.42.42.0/24
+  temporal-network:
+    driver: bridge
+    name: temporal-network
+
+volumes:
+  temporal-postgres-data:
+  pop3_state:

@@ -12,7 +12,7 @@ Each application in this repository follows a standardized structure to ensure c
 - **Persistent Storage**: 
   - All applications store data on the SD card located at `/mnt/sdcard`.
   - Data path convention: `/mnt/sdcard/<app-slug>/`
-- **Mount Dependency**: Services that rely on the SD card include a `mount-check` sidecar that ensures the storage is ready before the main application starts.
+- **Mount Dependency**: The SD card is managed by a central `sdcard-mount` service in the consolidated stack (`tachyon-stack`). Per-app `mount-check` sidecars were removed in favor of the central service. Use `sdcard-mount` when deploying the consolidated stack.
 
 ## 🚀 Deployment
 

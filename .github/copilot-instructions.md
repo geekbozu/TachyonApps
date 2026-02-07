@@ -12,8 +12,7 @@ This repository contains a collection of containerized applications ("Blueprints
   - Path convention: `/mnt/sdcard/<app-slug>/...`
   - Example: `volumes: [/mnt/sdcard/adguardhome/data:/app/data]` in [AdGuardHome/adguardhome/docker-compose.yml](../AdGuardHome/adguardhome/docker-compose.yml).
 - **Mount Dependency**:
-  - Apps relying on `/mnt/sdcard` must include a `mount-check` service that waits for the mount point to be ready before starting the main service.
-  - Refer to [Wireguard/wg-easy/docker-compose.yml](../Wireguard/wg-easy/docker-compose.yml) for the standard `mount-check` implementation.
+  - Apps relying on `/mnt/sdcard` previously included a `mount-check` sidecar to wait for the mount point. In the consolidated `tachyon-stack`, a central `sdcard-mount` service provides the mounted SD card and per-app `mount-check` sidecars were removed. Refer to `Storage/sdcard-mount/docker-compose.yml` for the central service implementation when deploying the consolidated stack.
 - **System Services**: The [Storage/sdcard-mount](../Storage/sdcard-mount) service is responsible for performing the actual mount and should not be modified unless changing system-wide storage logic.
 
 ## Developer Workflows

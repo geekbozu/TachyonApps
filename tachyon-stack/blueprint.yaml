@@ -1,0 +1,32 @@
+slug: tachyon-stack
+type: Stack
+category: "System"
+expertiseLevel: "INTERMEDIATE"
+tags: ["Stack", "Consolidated", "Reverse Proxy"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Tachyon Apps Combined Stack"
+shortDescription: Consolidated stack that brings up Storage and Caddy first, then AdGuard, then the rest of the apps.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: SD Card
+containers:
+  - sdcard-mount
+  - caddy
+  - adguardhome
+  - flux
+  - open_notebook
+  - pop3-gmail-importer
+  - temporal
+  - wg-easy
+introduction: |
+  This consolidated stack combines the individual TachyonApps into a single deployable Docker Compose stack. It ensures the SD card is mounted and Caddy is up before bringing AdGuard and the remaining services online.
+
+description: |
+  Use this stack to deploy all applications together and simplify management. Persistent data remains under /mnt/sdcard as in the individual blueprints.

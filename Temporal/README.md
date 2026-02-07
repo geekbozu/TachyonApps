@@ -47,12 +47,14 @@ This configuration persists across container recreations and firmware updates.
 
 ## Service Dependencies
 
-1. `mount-check`: Validates SD card is mounted before starting
+1. `sdcard-mount`: Mounts and ensures SD card availability (used in consolidated `tachyon-stack`)
 2. `postgresql`: Database with health checks
-3. `temporal-admin-tools`: Initializes database schemas using embedded scripts (depends on mount-check and postgresql)
+3. `temporal-admin-tools`: Initializes database schemas using embedded scripts (depends on postgresql)
 4. `temporal`: Main server (depends on admin-tools completion)
 5. `temporal-create-namespace`: Creates default namespace using embedded script (depends on temporal health)
 6. `temporal-ui`: Web interface (depends on temporal health)
+
+Note: Per-app `mount-check` sidecars were removed in favor of the central `sdcard-mount` service when using the consolidated stack.
 
 ## Ports
 

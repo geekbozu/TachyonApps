@@ -1,34 +1,9 @@
 services:
-  mount-check:
-    image: alpine:latest
-    container_name: caddy-mount-check
-    volumes:
-      - /mnt/sdcard:/mnt/sdcard:ro
-    command: >
-      sh -c '
-      echo "Waiting for SD card mount...";
-      for i in 1 2 3 4 5; do
-        if mountpoint -q /mnt/sdcard 2>/dev/null && [ -d /mnt/sdcard ] && [ "$$(ls -A /mnt/sdcard 2>/dev/null | wc -l)" -gt 0 ]; then
-          echo "SD card mount verified.";
-          exit 0;
-        fi;
-        echo "Mount not ready, waiting 5 seconds... (attempt $$i/5)";
-        sleep 5;
-      done;
-      echo "ERROR: SD card mount not available after 25 seconds.";
-      echo "Please ensure the sdcard-mount container is running.";
-      exit 1;
-      '
-    restart: "no"
-
   caddy-config:
     image: alpine:latest
     container_name: caddy-config
     volumes:
       - /mnt/sdcard/caddy:/caddy
-    depends_on:
-      mount-check:
-        condition: service_completed_successfully
     command:
       - sh
       - -c
@@ -103,8 +78,6 @@ services:
     networks:
       - proxy-network
     depends_on:
-      mount-check:
-        condition: service_completed_successfully
       caddy-config:
         condition: service_completed_successfully
     restart: unless-stopped

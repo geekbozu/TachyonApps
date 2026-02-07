@@ -42,5 +42,6 @@ particle container push --device 422a0600000000002e257941
 ## Init Containers
 
 1. `resolved-fix` - Disables systemd-resolved conflict on port 53
-2. `mount-check` - Verifies SD card is mounted
-3. `dns-provision` - Auto-provisions DNS rewrites using yq
+2. `dns-provision` - Auto-provisions DNS rewrites using yq
+
+Note: In the consolidated `tachyon-stack` deployment, SD card availability is provided by the central `sdcard-mount` service. Per-app `mount-check` sidecars were removed.
