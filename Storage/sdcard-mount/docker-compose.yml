@@ -57,4 +57,10 @@ services:
         sleep 300;
       done
       '
+    healthcheck:
+      test: ["CMD-SHELL", "mountpoint -q /mnt/sdcard && test -d /mnt/sdcard"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped

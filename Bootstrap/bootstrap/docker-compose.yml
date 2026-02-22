@@ -1,0 +1,46 @@
+services:
+  bootstrap:
+    image: alpine:latest
+    container_name: tachyon-bootstrap
+    privileged: true
+    network_mode: host
+    pid: host
+    environment:
+      - BRANCH=${BRANCH:-MergeItAll}
+    volumes:
+      - /home/particle:/home/particle
+    command: >
+      sh -c '
+      set -e;
+      REPO_URL="https://github.com/geekbozu/TachyonApps.git";
+      STACK_DIR="/home/particle/remote_stack";
+      BRANCH="$${BRANCH:-MergeItAll}";
+      PARTICLE_UID=$(nsenter -t 1 -m -u -n -i id -u particle);
+      PARTICLE_GID=$(nsenter -t 1 -m -u -n -i id -g particle);
+
+      echo "=== TachyonApps Bootstrap (branch: $${BRANCH}) ===";
+
+      # Clone or pull the repo on the host via nsenter
+      if nsenter -t 1 -m -u -n -i test -d "$${STACK_DIR}/.git"; then
+        echo "Repository already exists, fetching and checking out $${BRANCH}...";
+        nsenter -t 1 -m -u -n -i sh -c "cd $${STACK_DIR} && git fetch origin && git checkout $${BRANCH} && git pull --ff-only origin $${BRANCH}" || {
+          echo "WARNING: git pull failed, continuing with existing checkout";
+        };
+      else
+        echo "Cloning repository (branch: $${BRANCH}) to $${STACK_DIR}...";
+        nsenter -t 1 -m -u -n -i git clone -b "$${BRANCH}" "$${REPO_URL}" "$${STACK_DIR}";
+      fi;
+
+      echo "Setting ownership to particle ($${PARTICLE_UID}:$${PARTICLE_GID})...";
+      nsenter -t 1 -m -u -n -i chown -R $${PARTICLE_UID}:$${PARTICLE_GID} "$${STACK_DIR}";
+
+      echo "Deploying stack via docker compose...";
+      nsenter -t 1 -m -u -n -i su - particle -c "cd $${STACK_DIR} && docker compose up -d";
+
+      echo "=== Bootstrap complete ===";
+
+      # Keep container alive so it does not restart constantly
+      echo "Sleeping indefinitely...";
+      while true; do sleep 3600; done;
+      '
+    restart: unless-stopped
