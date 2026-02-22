@@ -29,8 +29,11 @@ services:
           }
         else
           echo "Cloning repository (branch: $${BRANCH}) to $${STACK_DIR}..."
-          nsenter -t 1 -m -u -n -i git clone -b "$${BRANCH}" "$${REPO_URL}" "$${STACK_DIR}"
+          nsenter -t 1 -m -u -n -i git clone --recurse-submodules -b "$${BRANCH}" "$${REPO_URL}" "$${STACK_DIR}"
         fi
+
+        echo "Initializing and updating submodules..."
+        nsenter -t 1 -m -u -n -i sh -c "cd $${STACK_DIR} && git submodule update --init --recursive"
 
         echo "Setting ownership to particle ($${PARTICLE_UID}:$${PARTICLE_GID})..."
         nsenter -t 1 -m -u -n -i chown -R $${PARTICLE_UID}:$${PARTICLE_GID} "$${STACK_DIR}"
