@@ -22,6 +22,8 @@ services:
 
         echo "=== TachyonApps Bootstrap (branch: $${BRANCH}) ==="
 
+        nsenter -t 1 -m -u -n -i git config --global --add safe.directory "$${STACK_DIR}"
+
         if nsenter -t 1 -m -u -n -i test -d "$${STACK_DIR}/.git"; then
           echo "Repository already exists, fetching and checking out $${BRANCH}..."
           nsenter -t 1 -m -u -n -i sh -c "cd $${STACK_DIR} && git fetch origin && git checkout $${BRANCH} && git pull --ff-only origin $${BRANCH}" || {
