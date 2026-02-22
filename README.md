@@ -1,46 +1,79 @@
 # TachyonApps
 
-A collection of containerized applications ("Blueprints") specifically designed for Tachyon devices and Raspberry Pi. This repository serves as a home lab source of truth for deploying and managing services with a focus on persistent storage and high availability on edge devices.
+A collection of containerized applications deployed as a single stack on Tachyon devices and Raspberry Pi. A **Bootstrap** blueprint clones this repository to the device and brings up the entire Docker Compose stack with one push.
 
 ## 🏗️ Architecture & Conventions
 
-Each application in this repository follows a standardized structure to ensure consistency across deployments:
+All services are orchestrated through a single top-level `docker-compose.yml` that uses `include` directives to compose each app's compose file. Startup order is strictly enforced via healthchecks and `depends_on`:
+
+```
+sdcard-mount (healthy) → adguardhome & caddy → remaining apps
+```
 
 - **App Structure**: Every service is contained within its own top-level directory.
-- **Blueprint Metadata**: A `blueprint.yaml` file defines the application's metadata (slug, version, categories, etc.).
 - **Docker Compose**: Deployment logic resides in a subdirectory (e.g., `AppName/app-name/docker-compose.yml`).
 - **Persistent Storage**: 
   - All applications store data on the SD card located at `/mnt/sdcard`.
   - Data path convention: `/mnt/sdcard/<app-slug>/`
-- **Mount Dependency**: Services that rely on the SD card include a `mount-check` sidecar that ensures the storage is ready before the main application starts.
+- **Mount Dependency**: The `sdcard-mount` service has a Docker healthcheck. All apps that need `/mnt/sdcard` declare `depends_on: sdcard-mount: condition: service_healthy` — no per-app `mount-check` sidecars are needed.
+- **Shared Network**: A single `proxy-network` is defined in the top-level compose and shared by all services that sit behind Caddy.
 
 ## 🚀 Deployment
 
-Applications are managed using the `particle` CLI tool.
+The entire stack is deployed through the **Bootstrap** blueprint.
 
-### Pushing Updates
-To build and deploy a container to a specific device:
-
-1. Navigate to the application's root directory:
+### First-Time Setup
+1. Navigate to the Bootstrap directory:
    ```bash
-   cd AdGuardHome
+   cd Bootstrap
    ```
-2. Push to the device:
+2. Push the bootstrap container to the device:
    ```bash
    particle container push --device <YOUR_DEVICE_ID>
    ```
 
+The bootstrap container will:
+1. Clone this repository to `/home/particle/remote_stack` on the host (with submodules).
+2. Set ownership to the `particle` user.
+3. Run `docker compose up -d` from the cloned repo via `nsenter` as the `particle` user.
+
+### Branch Selection
+By default the bootstrap deploys from the `MergeItAll` branch. Override with the `BRANCH` env var:
+```bash
+BRANCH=main particle container push --device <YOUR_DEVICE_ID>
+```
+
+### Updating
+Push the Bootstrap container again. It will `git pull` the latest changes and re-run `docker compose up -d`.
+
+### First-Time Cleanup
+If migrating from the old per-app deployment model, clean up stale containers and networks on the device before pushing Bootstrap:
+```bash
+docker rm -f caddy-config caddy caddy-mount-check \
+  adguardhome adguardhome-resolved-fix adguardhome-mount-check adguardhome-dns-provision \
+  flux-web flux-mount-check \
+  open-notebook open-notebook-mount-check surrealdb \
+  pop3-gmail-importer pop3-gmail-importer-mount-check \
+  wg-easy wg-easy-mount-check \
+  tailscale-host-config tailscale-mount-check \
+  sdcard-mount 2>/dev/null
+docker network rm proxy-network 2>/dev/null
+```
+
 ### Configuration
-Device-specific information is stored in a local `.particle_env.yaml` file. This file is excluded from version control to prevent sensitive data from being shared.
+Device-specific information is stored in a local `.particle_env.yaml` file (git-ignored).
 
 ## 📦 Available Applications
 
 - **[AdGuard Home](./AdGuardHome)**: Network-wide ads & trackers blocking DNS server with auto-provisioned DNS rewrites.
 - **[Caddy](./Caddy)**: Reverse proxy with automatic HTTPS for all local services.
-- **[OpenNotebook](./OpenNotebook)**: Collaborative notebook environment with SurrealDB.
+- **[Flux](./Flux)**: AI-powered Kanban board with MCP integration.
+- **[OpenNotebook](./OpenNotebook)**: AI-powered notebook with SurrealDB.
+- **[Pop3Sync](./Pop3Sync)**: POP3 → Gmail importer.
 - **[Wireguard](./Wireguard)**: Easy-to-manage VPN server.
+- **[Tailscale](./Tailscale)**: Tailscale exit node & subnet router.
 - **[Storage](./Storage)**: System-level service for SD card auto-mounting.
-- **[Temporal](./Temporal)**: Workflow orchestration engine (standalone, not behind reverse proxy).
+- **[Temporal](./Temporal)**: Workflow orchestration engine (currently disabled — uncomment in `docker-compose.yml` when fixed).
 
 ## 🌐 Reverse Proxy (Caddy)
 
@@ -52,6 +85,7 @@ All services (except Temporal) are accessible via HTTPS through Caddy reverse pr
 | WireGuard | `https://wireguard.internal.keepdream.in` |
 | OpenNotebook | `https://notebook.internal.keepdream.in` |
 | OpenNotebook API | `https://notebook-api.internal.keepdream.in` |
+| Flux | `https://flux.internal.keepdream.in` |
 
 ### DNS & Certificate Setup
 
@@ -84,6 +118,23 @@ LETSENCRYPT_EMAIL=your-email@example.com
 
 ## 🛠️ Development
 
+### Repository Structure
+```
+Bootstrap/           # Single entry-point blueprint
+  blueprint.yaml
+  bootstrap/docker-compose.yml
+docker-compose.yml   # Top-level compose (include all apps)
+AdGuardHome/         # DNS ad-blocking
+Caddy/               # Reverse proxy
+Flux/                # Task management
+OpenNotebook/        # AI notebook
+Pop3Sync/            # Email importer
+Storage/             # SD card mount service
+Tailscale/           # VPN exit node
+Temporal/            # Workflow engine (disabled)
+Wireguard/           # VPN server
+```
+
 ### Podman Support
 This repository uses Podman. Set the Docker host before running particle commands:
 ```powershell
@@ -93,7 +144,6 @@ $env:DOCKER_HOST = "npipe:\\\\.\pipe\podman-machine-default"
 ### Local Environment
 - Ensure you have the `particle` CLI tool installed.
 - Maintain the `/mnt/sdcard` directory structure on your target device to ensure persistence.
-- Refer to the `blueprint.yaml` in each directory for specific container dependencies.
 
 ---
 *Note: This repository is intended for personal use and home lab reference.*

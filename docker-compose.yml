@@ -1,0 +1,26 @@
+# TachyonApps – Top-Level Compose
+# Brings up the entire stack in the correct order:
+#   sdcard-mount → adguardhome & caddy → other apps
+#
+# Deploy: docker compose up -d
+
+include:
+  # ── Core infrastructure ──────────────────────────────────────────────
+  - path: Storage/sdcard-mount/docker-compose.yml    # must start first (healthcheck gate)
+  - path: AdGuardHome/adguardhome/docker-compose.yml # DNS – depends on sdcard-mount
+  - path: Caddy/caddy/docker-compose.yml             # reverse proxy – depends on sdcard-mount
+
+  # ── Application services ─────────────────────────────────────────────
+  - path: Flux/flux/docker-compose.yml               # task management
+  - path: OpenNotebook/open-notebook/docker-compose.yml
+  - path: Pop3Sync/pop3-gmail-importer/docker-compose.yml
+  - path: Wireguard/wg-easy/docker-compose.yml
+  - path: Tailscale/tailscale/docker-compose.yml
+
+  # ── Disabled / broken ───────────────────────────────────────────────
+  # - path: Temporal/temporal/docker-compose.yml      # currently broken – uncomment when fixed
+
+networks:
+  proxy-network:
+    name: proxy-network
+    driver: bridge

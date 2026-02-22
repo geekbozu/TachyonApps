@@ -1,0 +1,44 @@
+services:
+  tailscale:
+    image: alpine:latest
+    container_name: tailscale-host-config
+    depends_on:
+      sdcard-mount:
+        condition: service_healthy
+    network_mode: host
+    pid: host
+    privileged: true
+    command: >
+      sh -c '
+      echo "=== Tailscale Host Config Service ===";
+      KEY_FILE="/mnt/sdcard/tailscale/key/preauth.key.save";
+      
+      echo "Checking for auth key on host...";
+      if ! nsenter -t 1 -m -u -n -i test -f "$$KEY_FILE"; then
+        echo "ERROR: No auth key found at $$KEY_FILE on host";
+        echo "Checking if directory exists on host...";
+        nsenter -t 1 -m -u -n -i ls -la /mnt/sdcard/tailscale/key/ || echo "Directory not found";
+        exit 1;
+      fi;
+      
+      AUTH_KEY=$$(nsenter -t 1 -m -u -n -i cat "$$KEY_FILE" | tr -d "\n" | tr -d "\r");
+      echo "Loaded auth key from host";
+      
+      echo "Configuring host Tailscale...";
+      nsenter -t 1 -m -u -n -i tailscale up \
+        --authkey="$$AUTH_KEY" \
+        --advertise-exit-node \
+        --advertise-routes=192.168.68.0/24 \
+        --accept-dns=false \
+        --login-server=https://mail.keepdream.in:18080 \
+        --reset;
+      
+      echo "Tailscale configured successfully on host.";
+      
+      # Keep container alive so it does not restart constantly
+      echo "Sleeping indefinitely...";
+      while true; do
+        sleep 300;
+      done;
+      '
+    restart: unless-stopped

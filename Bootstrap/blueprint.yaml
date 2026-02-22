@@ -1,0 +1,36 @@
+slug: bootstrap
+type: System
+category: "Deployment"
+expertiseLevel: "ADVANCED"
+tags: ["System", "Bootstrap", "Deployment", "Orchestration"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Bootstrap"
+shortDescription: Single-entry bootstrap that clones the TachyonApps repo and deploys the entire stack.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies:
+  - name: Supported device
+containers: bootstrap
+introduction: |
+  Bootstrap is the single entry-point for deploying the entire TachyonApps stack. It clones the
+  repository to the host filesystem and uses nsenter to bring up the full Docker Compose stack as
+  the particle user.
+
+description: |
+  This blueprint replaces the per-app deployment model. Instead of pushing each application
+  individually with `particle container push`, you push only the Bootstrap container. On startup
+  it will:
+
+  1. Clone (or pull) https://github.com/geekbozu/TachyonApps/ to /home/particle/remote_stack on the host.
+  2. Ensure ownership is set to the particle user.
+  3. Use nsenter to run `docker compose up -d` from the cloned repository as the particle user.
+
+  The top-level docker-compose.yml in the repository uses `include` directives to compose all
+  individual app stacks into a single deployment with proper dependency ordering:
+  sdcard-mount → adguardhome & caddy → remaining apps.

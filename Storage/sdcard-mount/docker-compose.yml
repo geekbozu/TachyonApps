@@ -19,27 +19,48 @@ services:
       ls -la $$DEVICE || exit 1;
       mkdir -p $$MOUNT_POINT;
       
-      if mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
-        echo "SD card already mounted at $$MOUNT_POINT";
-      else
+      do_mount() {
         echo "Mounting $$DEVICE to $$MOUNT_POINT...";
-        mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Successfully mounted SD card" || exit 1;
+        mount -o umask=000,dmask=000,fmask=000 $$DEVICE $$MOUNT_POINT 2>/dev/null || \
+        mount -o umask=000 $$DEVICE $$MOUNT_POINT 2>/dev/null || \
+        mount $$DEVICE $$MOUNT_POINT || return 1;
+        return 0;
+      }
+      
+      if mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
+        PERMS=$$(stat -c "%a" $$MOUNT_POINT 2>/dev/null || echo "000");
+        if [ "$$PERMS" != "777" ]; then
+          echo "SD card already mounted but perms are $$PERMS. Unmounting and remounting...";
+          umount $$MOUNT_POINT 2>/dev/null || umount -l $$MOUNT_POINT 2>/dev/null;
+          do_mount || exit 1;
+        else
+          echo "SD card already mounted with correct permissions ($$PERMS).";
+        fi;
+      else
+        do_mount || exit 1;
       fi;
       
       if ! grep -q "$$DEVICE" /host_etc/fstab 2>/dev/null; then
         FSTYPE=$$(blkid -s TYPE -o value "$$DEVICE" 2>/dev/null || echo "auto");
-        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,umask=000,nofail 0 2" >> /host_etc/fstab;
+        echo "$$DEVICE $$MOUNT_POINT $$FSTYPE defaults,umask=000,dmask=000,fmask=000,nofail 0 2" >> /host_etc/fstab;
         echo "Added to fstab";
       fi;
       
-      echo "SD card ready at $$MOUNT_POINT";
+      PERMS=$$(stat -c "%a" $$MOUNT_POINT 2>/dev/null || echo "000");
+      echo "SD card ready at $$MOUNT_POINT with permissions $$PERMS";
       
       while true; do
         if ! mount | grep -q "$$DEVICE on $$MOUNT_POINT"; then
           echo "WARNING: Mount lost, remounting...";
-          mount -o umask=000 $$DEVICE $$MOUNT_POINT && echo "Remounted successfully" || echo "Remount failed";
+          do_mount;
         fi;
         sleep 300;
       done
       '
+    healthcheck:
+      test: ["CMD-SHELL", "mountpoint -q /mnt/sdcard && test -d /mnt/sdcard"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped

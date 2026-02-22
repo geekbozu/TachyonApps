@@ -1,33 +1,40 @@
 # TachyonApps Development Guidelines
 
-This repository contains a collection of containerized applications ("Blueprints") designed to run on Tachyon or Raspberry Pi devices. Each application is managed via a `blueprint.yaml` and a `docker-compose.yml`.
+This repository contains a collection of containerized applications deployed as a single Docker Compose stack on Tachyon or Raspberry Pi devices. A **Bootstrap** blueprint is pushed once via `particle container push`; it clones the repo to the host and brings up the entire stack.
 
 ## Architecture & conventions
 
-- **App Structure**: Each application resides in its own top-level directory (e.g., [AdGuardHome](../AdGuardHome)).
-- **Blueprint Files**: Every app must have a [blueprint.yaml](../AdGuardHome/blueprint.yaml) file at its root containing metadata like `slug`, `version`, and `containers`.
-- **Docker Compose**: The actual deployment logic is in a subdirectory (e.g., [adguardhome/docker-compose.yml](../AdGuardHome/adguardhome/docker-compose.yml)).
+- **Single Stack**: A top-level `docker-compose.yml` uses `include` directives to compose each app's compose file. Startup order is enforced:
+  `sdcard-mount (healthy) → adguardhome & caddy → remaining apps`.
+- **App Structure**: Each application resides in its own top-level directory (e.g., `AdGuardHome/`).
+- **Docker Compose**: The actual deployment logic is in a subdirectory (e.g., `AdGuardHome/adguardhome/docker-compose.yml`).
+- **Blueprint**: Only `Bootstrap/blueprint.yaml` exists. Individual app blueprints have been removed.
 - **Persistent Storage**:
   - All apps MUST store persistent data on the SD card located at `/mnt/sdcard`.
   - Path convention: `/mnt/sdcard/<app-slug>/...`
-  - Example: `volumes: [/mnt/sdcard/adguardhome/data:/app/data]` in [AdGuardHome/adguardhome/docker-compose.yml](../AdGuardHome/adguardhome/docker-compose.yml).
 - **Mount Dependency**:
-  - Apps relying on `/mnt/sdcard` must include a `mount-check` service that waits for the mount point to be ready before starting the main service.
-  - Refer to [Wireguard/wg-easy/docker-compose.yml](../Wireguard/wg-easy/docker-compose.yml) for the standard `mount-check` implementation.
-- **System Services**: The [Storage/sdcard-mount](../Storage/sdcard-mount) service is responsible for performing the actual mount and should not be modified unless changing system-wide storage logic.
+  - The `sdcard-mount` service (in `Storage/sdcard-mount/docker-compose.yml`) has a Docker healthcheck.
+  - Apps that need `/mnt/sdcard` declare `depends_on: sdcard-mount: condition: service_healthy`.
+  - **No per-app `mount-check` sidecars** — the healthcheck on `sdcard-mount` replaces them.
+- **Shared Network**: A single `proxy-network` is defined in the top-level compose. Sub-files reference it without declaring it.
+- **System Services**: The `Storage/sdcard-mount` service is responsible for performing the actual mount and should not be modified unless changing system-wide storage logic.
 
 ## Developer Workflows
 
-- **Deployment**: Use the `particle` CLI tool to deploy or update containers.
-- **Pushing Updates**: Run `particle container push` from within the specific app's root directory (e.g., `cd OpenNotebook; particle container push`).
-  - Command: `particle container push --device 422a0600000000002e257941`
-  - The tool builds and pushes the application defined in the current directory to the targeted device.
+- **Deployment**: Push the **Bootstrap** container only — it handles deploying the full stack.
+  - Command: `cd Bootstrap; particle container push --device 422a0600000000002e257941`
+  - The bootstrap container clones/pulls the repo to `/home/particle/remote_stack` and runs `docker compose up -d` as the `particle` user via `nsenter`.
+  - Supports submodules (`Flux/flux-repo`, `Pop3Sync/pop3-gmail-importer-upstream`) — they are auto-initialized.
+- **Branch Selection**: Set `BRANCH` env var to deploy a non-default branch (default: `MergeItAll`).
+  - Example: `BRANCH=feature/foo particle container push --device 422a0600000000002e257941`
+- **Updating**: Re-push Bootstrap. It will `git pull` latest changes and re-run compose up.
 - **Configuration**: Environment-specific device information is stored in `.particle_env.yaml` (git-ignored), which is used by the `particle` tool.
 
 ## Device Information
 - **Default Device ID**: `422a0600000000002e257941` (Use with `--device` flag in `particle` CLI).
 
 ## Key Files to Reference
-- [AdGuardHome/blueprint.yaml](../AdGuardHome/blueprint.yaml): Reference for DNS/Network service metadata.
-- [Temporal/temporal/docker-compose.yml](../Temporal/temporal/docker-compose.yml): Reference for complex multi-container workflows (though it currently uses anonymous volumes).
-- [Storage/sdcard-mount/docker-compose.yml](../Storage/sdcard-mount/docker-compose.yml): Root service for storage management.
+- `Bootstrap/blueprint.yaml`: The single entry-point blueprint.
+- `docker-compose.yml` (root): Top-level compose that includes all app compose files.
+- `Storage/sdcard-mount/docker-compose.yml`: Root service for storage management with healthcheck.
+- `Caddy/caddy/docker-compose.yml`: Reverse proxy configuration.
