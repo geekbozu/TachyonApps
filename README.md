@@ -33,12 +33,32 @@ The entire stack is deployed through the **Bootstrap** blueprint.
    ```
 
 The bootstrap container will:
-1. Clone this repository to `/home/particle/remote_stack` on the host.
+1. Clone this repository to `/home/particle/remote_stack` on the host (with submodules).
 2. Set ownership to the `particle` user.
 3. Run `docker compose up -d` from the cloned repo via `nsenter` as the `particle` user.
 
+### Branch Selection
+By default the bootstrap deploys from the `MergeItAll` branch. Override with the `BRANCH` env var:
+```bash
+BRANCH=main particle container push --device <YOUR_DEVICE_ID>
+```
+
 ### Updating
 Push the Bootstrap container again. It will `git pull` the latest changes and re-run `docker compose up -d`.
+
+### First-Time Cleanup
+If migrating from the old per-app deployment model, clean up stale containers and networks on the device before pushing Bootstrap:
+```bash
+docker rm -f caddy-config caddy caddy-mount-check \
+  adguardhome adguardhome-resolved-fix adguardhome-mount-check adguardhome-dns-provision \
+  flux-web flux-mount-check \
+  open-notebook open-notebook-mount-check surrealdb \
+  pop3-gmail-importer pop3-gmail-importer-mount-check \
+  wg-easy wg-easy-mount-check \
+  tailscale-host-config tailscale-mount-check \
+  sdcard-mount 2>/dev/null
+docker network rm proxy-network 2>/dev/null
+```
 
 ### Configuration
 Device-specific information is stored in a local `.particle_env.yaml` file (git-ignored).
@@ -65,6 +85,7 @@ All services (except Temporal) are accessible via HTTPS through Caddy reverse pr
 | WireGuard | `https://wireguard.internal.keepdream.in` |
 | OpenNotebook | `https://notebook.internal.keepdream.in` |
 | OpenNotebook API | `https://notebook-api.internal.keepdream.in` |
+| Flux | `https://flux.internal.keepdream.in` |
 
 ### DNS & Certificate Setup
 

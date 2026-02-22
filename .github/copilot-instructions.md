@@ -24,6 +24,9 @@ This repository contains a collection of containerized applications deployed as 
 - **Deployment**: Push the **Bootstrap** container only — it handles deploying the full stack.
   - Command: `cd Bootstrap; particle container push --device 422a0600000000002e257941`
   - The bootstrap container clones/pulls the repo to `/home/particle/remote_stack` and runs `docker compose up -d` as the `particle` user via `nsenter`.
+  - Supports submodules (`Flux/flux-repo`, `Pop3Sync/pop3-gmail-importer-upstream`) — they are auto-initialized.
+- **Branch Selection**: Set `BRANCH` env var to deploy a non-default branch (default: `MergeItAll`).
+  - Example: `BRANCH=feature/foo particle container push --device 422a0600000000002e257941`
 - **Updating**: Re-push Bootstrap. It will `git pull` latest changes and re-run compose up.
 - **Configuration**: Environment-specific device information is stored in `.particle_env.yaml` (git-ignored), which is used by the `particle` tool.
 
