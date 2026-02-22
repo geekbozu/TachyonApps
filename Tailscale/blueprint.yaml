@@ -1,0 +1,22 @@
+slug: tailscale
+type: System
+category: "Networking"
+expertiseLevel: "INTERMEDIATE"
+tags: ["System", "Networking", "VPN", "Tailscale"]
+gitrepo: https://github.com/geekbozu/TachyonApps.git
+name: "Tailscale Exit Node"
+shortDescription: Configures the device as a Tailscale exit node and subnet router.
+version: 1.0.0
+models: []
+language: []
+cloudServices: []
+integrations: []
+supportedDevices:
+  - name: Tachyon
+  - name: Raspberry Pi
+hardwareDependencies: []
+containers: tailscale
+introduction: |
+  This blueprint configures the device as a Tailscale exit node and subnet router,
+  connecting it to a custom Headscale server. It advertises the local 192.168.68.0/24
+  subnet and ignores Tailscale DNS settings to allow local DNS resolution.

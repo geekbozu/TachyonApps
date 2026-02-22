@@ -107,7 +107,8 @@ services:
         condition: service_completed_successfully
       caddy-config:
         condition: service_completed_successfully
-    restart: unless-stopped
+    restart: always
 networks:
   proxy-network:
-    external: true
+    name: proxy-network
+    driver: bridge
