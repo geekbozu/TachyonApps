@@ -40,8 +40,12 @@ services:
         echo "Setting ownership to particle ($${PARTICLE_UID}:$${PARTICLE_GID})..."
         nsenter -t 1 -m -u -n -i chown -R $${PARTICLE_UID}:$${PARTICLE_GID} "$${STACK_DIR}"
 
+        echo "Cleaning up stale containers and networks from previous deployments..."
+        nsenter -t 1 -m -u -n -i su - particle -c "cd $${STACK_DIR} && docker compose down --remove-orphans" 2>/dev/null || true
+        nsenter -t 1 -m -u -n -i docker network rm proxy-network 2>/dev/null || true
+
         echo "Deploying stack via docker compose..."
-        nsenter -t 1 -m -u -n -i su - particle -c "cd $${STACK_DIR} && docker compose up -d"
+        nsenter -t 1 -m -u -n -i su - particle -c "cd $${STACK_DIR} && docker compose up -d --remove-orphans"
 
         echo "=== Bootstrap complete ==="
 
